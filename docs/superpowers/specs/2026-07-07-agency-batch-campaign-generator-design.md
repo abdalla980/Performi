@@ -29,6 +29,23 @@ Let an agency generate and launch Google Ads **and** Meta Ads campaigns for many
 - **Rollout model:** hand-onboarded pilot agencies. No public self-serve signup, no billing, no marketing site in v1. Rationale: OAuth sensitive-scope verification is slower and stricter for public multi-tenant apps (10+ days, demo video, written justification per scope per `docs/market-research.md` §5); piloting with real usage first is lower-risk and produces testimonials while that review path is evaluated.
 - **Platform scope:** Google Ads and Meta Ads both from v1 (not sequenced), since most target agencies run both and a single-platform tool doesn't remove the #1 and #2 pain points above.
 
+## Platform approval requirements
+
+Because this is a public multi-tenant app managing ad accounts belonging to businesses other than our own, both platforms require formal approval before it can be used with a pilot agency's own independent ad accounts — this is a hard prerequisite, not something engineering effort shortens, so it should start in parallel with the backend build (Plan 1), not after.
+
+**Google Ads API** (per `docs/market-research.md` §5):
+- A 22-character developer token from a Google Ads manager account, tiered Test/Explorer → Basic → Standard, each needing separate Google review.
+- The token needs approval specifically for "Ad creation/management," not just "Reporting" (read-only) — this product publishes campaigns.
+- OAuth sensitive-scope verification: 10+ days, requires an unlisted demo video of the OAuth consent flow plus written justification per scope.
+
+**Meta Marketing API** (researched this session, sourced from developers.facebook.com unless noted):
+- Requires **App Review** for Advanced Access to `ads_management` — Standard Access only works for ad accounts that are already owners/admins on the app's own Business Manager, which doesn't cover independent pilot agencies' accounts.
+- Separately requires **Business Verification** (mandatory since Feb 2023) — legal business documents (registration, tax ID) proving the business behind the app, distinct from and in addition to App Review.
+- No official Meta timeline; third-party estimates (unconfirmed) suggest roughly 1–4 weeks combined for both approvals.
+- Point-based rate limits apply per app+ad account (Dev tier cap 60pts, Standard tier cap 9,000pts per 300s); reaching the higher tier now additionally requires ≥500 Marketing API calls in the trailing 15 days at <15% error rate (policy effective May 4, 2026) — achievable naturally once pilot usage is real, but worth knowing about in advance.
+
+**Until both approvals land**, the tool can only connect ad accounts manually added as testers/admins (our own sandbox accounts, or a pilot agency's accounts added directly as collaborators) — it cannot yet onboard an arbitrary outside agency's independently-owned ad account. This is the same population of accounts Plan 1's Task 13 sandbox test already relies on, so no extra setup is needed to start testing — but it does mean the *first fully self-service pilot agency* (connecting their own accounts without us adding them as a collaborator) is gated on these approvals landing, not on any remaining engineering work.
+
 ## Non-goals (v1)
 
 - Self-serve signup, billing, or a public marketing site.

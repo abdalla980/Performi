@@ -697,6 +697,8 @@ git commit -m "feat: verify Supabase-issued JWTs and add hand-onboarding link sc
 
 ### Task 4: Client CRUD + Google Ads OAuth connect flow
 
+> **Platform approval note:** this connect flow works end-to-end for any account added as a tester/admin on our Google Ads manager account, but Google's own review (developer token tier + OAuth sensitive-scope verification, 10+ days) gates connecting an outside pilot agency's *independent* ad account. Start that review in parallel with this task, not after — see the design spec's "Platform approval requirements" section. Does not block building or testing this task with sandbox/test accounts.
+
 **Files:**
 - Create: `backend/app/encryption.py`
 - Create: `backend/app/schemas/client.py`
@@ -948,6 +950,8 @@ git commit -m "feat: add client creation and Google Ads OAuth connect flow"
 ---
 
 ### Task 5: Meta Ads OAuth connect flow
+
+> **Platform approval note:** same caveat as Task 4, for Meta. This connect flow works for accounts added as testers/admins on our Meta Business Manager, but onboarding an outside pilot agency's *independent* ad account is gated on Meta App Review (Advanced Access to `ads_management`) **and** a separate Business Verification step — both take real time (unconfirmed by Meta, third-party estimates ~1-4 weeks combined) and should start now, in parallel with the build. See the design spec's "Platform approval requirements" section for sourcing. Does not block building or testing this task with sandbox accounts.
 
 **Files:**
 - Create: `backend/app/services/meta_oauth.py`
