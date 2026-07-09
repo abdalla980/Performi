@@ -1,0 +1,392 @@
+import type {
+  ApiClient,
+  AuditLogEntry,
+  BrandVoiceInput,
+  BrandVoiceProfile,
+  BriefInput,
+  Client,
+  ClientDetail,
+  ConfigStatus,
+  DraftDetail,
+  DraftSummary,
+  GenerateResult,
+  GoogleCampaignPlan,
+  GuardrailReport,
+  LaunchResponse,
+  MetaCampaignPlan,
+  PlatformLaunchResult,
+} from './types'
+
+interface HttpApiClientOptions {
+  baseUrl: string
+  getAuthToken: () => Promise<string>
+  fetchFn?: typeof fetch
+}
+
+interface RawGoogleAdGroup {
+  name: string
+  keywords: string[]
+  headlines: string[]
+  descriptions: string[]
+}
+
+interface RawGooglePlan {
+  campaign_name: string
+  daily_budget_micros: number
+  end_date: string | null
+  ad_groups: RawGoogleAdGroup[]
+}
+
+interface RawMetaAdSet {
+  name: string
+  daily_budget_cents: number
+  targeting_description: string
+  creative_headline: string
+  creative_body: string
+  call_to_action: string
+}
+
+interface RawMetaPlan {
+  campaign_name: string
+  objective: string
+  ad_sets: RawMetaAdSet[]
+}
+
+interface RawBrandVoice {
+  id: string
+  client_id: string
+  tone: string
+  banned_terms: string[]
+  required_disclaimers: string[]
+  approved_offers: string[]
+}
+
+interface RawClient {
+  id: string
+  name: string
+  google_ads_customer_id: string | null
+  meta_ad_account_id: string | null
+  google_connected: boolean
+  meta_connected: boolean
+}
+
+interface RawClientDetail extends RawClient {
+  brand_voice: RawBrandVoice | null
+}
+
+interface RawGuardrailFlag {
+  severity: 'block' | 'warn'
+  code: string
+  message: string
+}
+
+interface RawGuardrailReport {
+  id: string
+  campaign_draft_id: string
+  flags: RawGuardrailFlag[]
+  has_blocking_flags: boolean
+}
+
+interface RawPlatformLaunchResult {
+  platform: 'google' | 'meta'
+  status: 'success' | 'failed'
+  external_campaign_id: string | null
+  error_message: string | null
+}
+
+interface RawDraftSummary {
+  id: string
+  brief_id: string
+  client_id: string
+  client_name: string
+  status: DraftSummary['status']
+  business_description: string
+  budget_usd: number
+  goals: string
+  guardrail_flag_count: number
+  has_blocking_flags: boolean
+  created_at: string
+}
+
+interface RawDraftDetail extends RawDraftSummary {
+  google_plan: RawGooglePlan | null
+  meta_plan: RawMetaPlan | null
+  guardrail: RawGuardrailReport | null
+  launches: RawPlatformLaunchResult[]
+}
+
+interface RawLaunchResponse {
+  status: 'launched' | 'failed'
+  external_campaign_id: string | null
+  error_message: string | null
+  platforms: RawPlatformLaunchResult[]
+}
+
+interface RawAuditEntry {
+  id: string
+  client_id: string | null
+  event_type: string
+  payload: Record<string, unknown>
+  created_at: string
+}
+
+interface RawConfigStatus {
+  anthropic_configured: boolean
+  google_ads_configured: boolean
+  meta_configured: boolean
+}
+
+interface RawGenerateResult {
+  id: string
+  brief_id: string
+  status: DraftSummary['status']
+  mode: 'live' | 'demo'
+  google_plan: RawGooglePlan
+  meta_plan: RawMetaPlan
+}
+
+function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
+  return {
+    campaignName: raw.campaign_name,
+    dailyBudgetMicros: raw.daily_budget_micros,
+    endDate: raw.end_date,
+    adGroups: raw.ad_groups.map((group) => ({
+      name: group.name,
+      keywords: group.keywords,
+      headlines: group.headlines,
+      descriptions: group.descriptions,
+    })),
+  }
+}
+
+function toMetaPlan(raw: RawMetaPlan): MetaCampaignPlan {
+  return {
+    campaignName: raw.campaign_name,
+    objective: raw.objective,
+    adSets: raw.ad_sets.map((adSet) => ({
+      name: adSet.name,
+      dailyBudgetCents: adSet.daily_budget_cents,
+      targetingDescription: adSet.targeting_description,
+      creativeHeadline: adSet.creative_headline,
+      creativeBody: adSet.creative_body,
+      callToAction: adSet.call_to_action,
+    })),
+  }
+}
+
+function toBrandVoice(raw: RawBrandVoice): BrandVoiceProfile {
+  return {
+    id: raw.id,
+    clientId: raw.client_id,
+    tone: raw.tone,
+    bannedTerms: raw.banned_terms,
+    requiredDisclaimers: raw.required_disclaimers,
+    approvedOffers: raw.approved_offers,
+  }
+}
+
+function toClient(raw: RawClient): Client {
+  return {
+    id: raw.id,
+    name: raw.name,
+    googleAdsCustomerId: raw.google_ads_customer_id,
+    metaAdAccountId: raw.meta_ad_account_id,
+    googleConnected: raw.google_connected,
+    metaConnected: raw.meta_connected,
+  }
+}
+
+function toClientDetail(raw: RawClientDetail): ClientDetail {
+  return {
+    ...toClient(raw),
+    brandVoice: raw.brand_voice ? toBrandVoice(raw.brand_voice) : null,
+  }
+}
+
+function toGuardrailReport(raw: RawGuardrailReport): GuardrailReport {
+  return {
+    id: raw.id,
+    campaignDraftId: raw.campaign_draft_id,
+    flags: raw.flags.map((flag) => ({ severity: flag.severity, code: flag.code, message: flag.message })),
+    hasBlockingFlags: raw.has_blocking_flags,
+  }
+}
+
+function toPlatformLaunchResult(raw: RawPlatformLaunchResult): PlatformLaunchResult {
+  return {
+    platform: raw.platform,
+    status: raw.status,
+    externalCampaignId: raw.external_campaign_id,
+    errorMessage: raw.error_message,
+  }
+}
+
+function toDraftSummary(raw: RawDraftSummary): DraftSummary {
+  return {
+    id: raw.id,
+    briefId: raw.brief_id,
+    clientId: raw.client_id,
+    clientName: raw.client_name,
+    status: raw.status,
+    businessDescription: raw.business_description,
+    budgetUsd: raw.budget_usd,
+    goals: raw.goals,
+    guardrailFlagCount: raw.guardrail_flag_count,
+    hasBlockingFlags: raw.has_blocking_flags,
+    createdAt: raw.created_at,
+  }
+}
+
+function toDraftDetail(raw: RawDraftDetail): DraftDetail {
+  return {
+    ...toDraftSummary(raw),
+    googlePlan: raw.google_plan ? toGooglePlan(raw.google_plan) : null,
+    metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
+    guardrail: raw.guardrail ? toGuardrailReport(raw.guardrail) : null,
+    launches: raw.launches.map(toPlatformLaunchResult),
+  }
+}
+
+function toLaunchResponse(raw: RawLaunchResponse): LaunchResponse {
+  return {
+    status: raw.status,
+    externalCampaignId: raw.external_campaign_id,
+    errorMessage: raw.error_message,
+    platforms: raw.platforms.map(toPlatformLaunchResult),
+  }
+}
+
+function toAuditEntry(raw: RawAuditEntry): AuditLogEntry {
+  return {
+    id: raw.id,
+    clientId: raw.client_id,
+    eventType: raw.event_type,
+    payload: raw.payload,
+    createdAt: raw.created_at,
+  }
+}
+
+function toConfigStatus(raw: RawConfigStatus): ConfigStatus {
+  return {
+    anthropicConfigured: raw.anthropic_configured,
+    googleAdsConfigured: raw.google_ads_configured,
+    metaConfigured: raw.meta_configured,
+  }
+}
+
+function toGenerateResult(raw: RawGenerateResult): GenerateResult {
+  return {
+    id: raw.id,
+    briefId: raw.brief_id,
+    status: raw.status,
+    mode: raw.mode,
+    googlePlan: toGooglePlan(raw.google_plan),
+    metaPlan: toMetaPlan(raw.meta_plan),
+  }
+}
+
+export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: HttpApiClientOptions): ApiClient {
+  async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+    const token = await getAuthToken()
+    const response = await fetchFn(`${baseUrl}${path}`, {
+      method,
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+    if (!response.ok) {
+      throw new Error(await response.text())
+    }
+    if (response.status === 204) {
+      return undefined as T
+    }
+    return (await response.json()) as T
+  }
+
+  const get = <T>(path: string) => request<T>('GET', path)
+  const post = <T>(path: string, body?: unknown) => request<T>('POST', path, body)
+  const put = <T>(path: string, body?: unknown) => request<T>('PUT', path, body)
+
+  return {
+    async getConfigStatus(): Promise<ConfigStatus> {
+      return toConfigStatus(await get<RawConfigStatus>('/config/status'))
+    },
+
+    async listClients(): Promise<Client[]> {
+      const raw = await get<RawClient[]>('/clients')
+      return raw.map(toClient)
+    },
+
+    async createClient(name: string): Promise<Client> {
+      return toClient(await post<RawClient>('/clients', { name }))
+    },
+
+    async getClient(clientId: string): Promise<ClientDetail> {
+      return toClientDetail(await get<RawClientDetail>(`/clients/${clientId}`))
+    },
+
+    async setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile> {
+      const raw = await put<RawBrandVoice>(`/clients/${clientId}/brand-voice`, {
+        tone: brandVoice.tone,
+        banned_terms: brandVoice.bannedTerms,
+        required_disclaimers: brandVoice.requiredDisclaimers,
+        approved_offers: brandVoice.approvedOffers,
+      })
+      return toBrandVoice(raw)
+    },
+
+    async connectGoogleDemo(clientId: string): Promise<void> {
+      await post(`/clients/${clientId}/google/demo-connect`)
+    },
+
+    async connectMetaDemo(clientId: string): Promise<void> {
+      await post(`/clients/${clientId}/meta/demo-connect`)
+    },
+
+    async submitBriefsBatch(briefs: BriefInput[]): Promise<DraftSummary[]> {
+      const raw = await post<RawDraftSummary[]>('/briefs/batch', {
+        briefs: briefs.map((brief) => ({
+          client_id: brief.clientId,
+          business_description: brief.businessDescription,
+          budget_usd: brief.budgetUsd,
+          goals: brief.goals,
+        })),
+      })
+      return raw.map(toDraftSummary)
+    },
+
+    async listBriefs(clientId?: string): Promise<DraftSummary[]> {
+      const query = clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''
+      const raw = await get<RawDraftSummary[]>(`/briefs${query}`)
+      return raw.map(toDraftSummary)
+    },
+
+    async getBrief(draftId: string): Promise<DraftDetail> {
+      return toDraftDetail(await get<RawDraftDetail>(`/briefs/${draftId}`))
+    },
+
+    async generateDraft(draftId: string): Promise<GenerateResult> {
+      return toGenerateResult(await post<RawGenerateResult>(`/briefs/${draftId}/generate`))
+    },
+
+    async runGuardrails(draftId: string): Promise<GuardrailReport> {
+      return toGuardrailReport(await post<RawGuardrailReport>(`/briefs/${draftId}/guardrails/run`))
+    },
+
+    async approveDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }> {
+      return post(`/briefs/${draftId}/approve`, { decision: 'approved', reviewer_note: reviewerNote ?? null })
+    },
+
+    async rejectDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }> {
+      return post(`/briefs/${draftId}/approve`, { decision: 'rejected', reviewer_note: reviewerNote ?? null })
+    },
+
+    async launchDraft(draftId: string): Promise<LaunchResponse> {
+      return toLaunchResponse(await post<RawLaunchResponse>(`/briefs/${draftId}/launch`))
+    },
+
+    async listAuditLog(limit = 100): Promise<AuditLogEntry[]> {
+      const raw = await get<RawAuditEntry[]>(`/audit-log?limit=${limit}`)
+      return raw.map(toAuditEntry)
+    },
+  }
+}

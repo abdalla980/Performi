@@ -1,5 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import type { BriefInput } from '../lib/types'
+import { Button } from './ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Textarea } from './ui/textarea'
+import { Alert } from './ui/alert'
 
 interface BriefFormProps {
   clientId: string
@@ -30,25 +36,44 @@ export function BriefForm({ clientId, onSubmit }: BriefFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="business-description">Business description</label>
-      <textarea
-        id="business-description"
-        value={businessDescription}
-        onChange={(event) => setBusinessDescription(event.target.value)}
-      />
+    <Card className="w-full max-w-xl">
+      <CardHeader>
+        <CardTitle>New campaign brief</CardTitle>
+        <CardDescription>Describe the client's business and we'll draft a campaign.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="business-description">Business description</Label>
+            <Textarea
+              id="business-description"
+              value={businessDescription}
+              onChange={(event) => setBusinessDescription(event.target.value)}
+            />
+          </div>
 
-      <label htmlFor="budget">Budget (USD)</label>
-      <input id="budget" type="number" value={budget} onChange={(event) => setBudget(event.target.value)} />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="budget">Budget (USD)</Label>
+            <Input
+              id="budget"
+              type="number"
+              value={budget}
+              onChange={(event) => setBudget(event.target.value)}
+            />
+          </div>
 
-      <label htmlFor="goals">Goal</label>
-      <input id="goals" type="text" value={goals} onChange={(event) => setGoals(event.target.value)} />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="goals">Goal</Label>
+            <Input id="goals" type="text" value={goals} onChange={(event) => setGoals(event.target.value)} />
+          </div>
 
-      {error && <p role="alert">{error}</p>}
+          {error && <Alert>{error}</Alert>}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Generating…' : 'Generate campaign'}
-      </button>
-    </form>
+          <Button type="submit" disabled={submitting} className="mt-2 self-start">
+            {submitting ? 'Generating…' : 'Generate campaign'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

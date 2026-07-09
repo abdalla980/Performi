@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AppShell } from './components/AppShell'
 import { BriefForm } from './components/BriefForm'
 import { CampaignReview } from './components/CampaignReview'
 import { LaunchResult } from './components/LaunchResult'
@@ -41,16 +42,32 @@ export function App({ apiClient, onLogin, clientId }: AppProps) {
   }
 
   if (screen.name === 'login') {
-    return <LoginForm onLogin={handleLogin} />
+    return (
+      <AppShell step={1}>
+        <LoginForm onLogin={handleLogin} />
+      </AppShell>
+    )
   }
 
   if (screen.name === 'brief') {
-    return <BriefForm clientId={clientId} onSubmit={handleBriefSubmit} />
+    return (
+      <AppShell step={2}>
+        <BriefForm clientId={clientId} onSubmit={handleBriefSubmit} />
+      </AppShell>
+    )
   }
 
   if (screen.name === 'review') {
-    return <CampaignReview plan={screen.plan} onLaunch={handleLaunch} />
+    return (
+      <AppShell step={3}>
+        <CampaignReview plan={screen.plan} onLaunch={handleLaunch} />
+      </AppShell>
+    )
   }
 
-  return <LaunchResult result={screen.result} />
+  return (
+    <AppShell step={4}>
+      <LaunchResult result={screen.result} />
+    </AppShell>
+  )
 }

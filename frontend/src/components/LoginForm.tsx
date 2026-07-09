@@ -1,4 +1,9 @@
 import { useState, type FormEvent } from 'react'
+import { Button } from './ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
+import { Input } from './ui/input'
+import { Label } from './ui/label'
+import { Alert } from './ui/alert'
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -24,23 +29,42 @@ export function LoginForm({ onLogin }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      <label htmlFor="email">Email</label>
-      <input id="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+    <Card className="w-full max-w-sm">
+      <CardHeader>
+        <CardTitle>Welcome back</CardTitle>
+        <CardDescription>Log in to your agency account.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </div>
 
-      <label htmlFor="password">Password</label>
-      <input
-        id="password"
-        type="password"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-      />
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </div>
 
-      {error && <p role="alert">{error}</p>}
+          {error && <Alert>{error}</Alert>}
 
-      <button type="submit" disabled={submitting}>
-        {submitting ? 'Logging in…' : 'Log in'}
-      </button>
-    </form>
+          <Button type="submit" disabled={submitting} className="mt-2">
+            {submitting ? 'Logging in…' : 'Log in'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   )
 }

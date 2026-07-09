@@ -90,6 +90,7 @@ psycopg[binary]>=3.2
 pyjwt>=2.9
 cryptography>=43.0
 httpx>=0.27
+httpx2>=2.0  # required by starlette's TestClient in recent fastapi/starlette versions
 anthropic>=0.34
 google-ads>=25.0.0
 facebook-business>=21.0.0
@@ -110,7 +111,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     database_url: str = "sqlite:///./dev.db"  # local dev/tests; set to the Supabase Postgres connection string in deployment
-    supabase_jwt_secret: str = "dev-secret-change-me"  # from Supabase project settings > API > JWT Secret
+    supabase_jwt_secret: str = "dev-secret-change-me-32-bytes-min"  # from Supabase project settings > API > JWT Secret
     token_encryption_key: str = ""
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-5"
@@ -161,25 +162,31 @@ def get_db() -> Session:
 
 ```python
 # backend/app/main.py
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.db import Base, engine
 
-app = FastAPI(title="Agency Batch Campaign Generator")
 
-
-@app.on_event("startup")
-def on_startup() -> None:
+@asynccontextmanager
+async def lifespan(_: FastAPI):
     # Creates any tables declared on Base.metadata that don't exist yet. Safe to run on
     # every startup — no-op for tables that already exist. Sufficient for a hand-onboarded
     # pilot with a single deploy target; see Global Constraints for when to add real migrations.
     Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Agency Batch Campaign Generator", lifespan=lifespan)
 
 
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
 ```
+
+Uses the `lifespan` context manager rather than the older `@app.on_event("startup")` decorator, which recent FastAPI/Starlette versions flag as deprecated.
 
 ```python
 # backend/tests/conftest.py
@@ -431,14 +438,22 @@ def record_audit_event(
 # backend/tests/conftest.py (append to existing file from Task 1)
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
+from app import models  # noqa: F401  ensures all models are registered on Base
 from app.db import Base
-import app.models  # noqa: F401  ensures all models are registered on Base
 
 
 @pytest.fixture()
 def db_session() -> Session:
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
+    # StaticPool forces every connection checkout to reuse the same underlying
+    # connection — without it, SQLite's `:memory:` database is per-connection, so a
+    # session that commits and a session that later queries can land on two separate,
+    # independently-empty in-memory databases (this bites as soon as a route handler's
+    # `get_db` override reads back something a test wrote via `db_session`).
+    engine = create_engine(
+        "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+    )
     Base.metadata.create_all(engine)
     TestingSession = sessionmaker(bind=engine)
     session = TestingSession()
@@ -662,18 +677,22 @@ def make_supabase_jwt(supabase_user_id: str) -> str:
 
 ```python
 # backend/app/main.py (full file, replaces Task 1 version)
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.db import Base, engine, get_db  # get_db re-exported for dependency_overrides in tests
 from app.routers import me
 
-app = FastAPI(title="Agency Batch Campaign Generator")
-app.include_router(me.router)
 
-
-@app.on_event("startup")
-def on_startup() -> None:
+@asynccontextmanager
+async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title="Agency Batch Campaign Generator", lifespan=lifespan)
+app.include_router(me.router)
 
 
 @app.get("/health")

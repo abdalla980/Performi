@@ -1,0 +1,69 @@
+import json
+from types import SimpleNamespace
+
+from app.models.brand_voice import BrandVoiceProfile
+from app.schemas.campaign_ir import AdCopyVariant, CampaignIR
+from app.services.guardrails import run_rule_checks, run_semantic_check
+
+
+class FakeAnthropicClient:
+    def __init__(self, response_text: str):
+        self._response_text = response_text
+
+    class _Messages:
+        def __init__(self, outer):
+            self._outer = outer
+
+        def create(self, **kwargs):
+            return SimpleNamespace(content=[SimpleNamespace(text=self._outer._response_text)])
+
+    @property
+    def messages(self):
+        return FakeAnthropicClient._Messages(self)
+
+
+def _ir(daily_budget_usd=16.5, headline="Fresh Pastries Daily") -> CampaignIR:
+    return CampaignIR(
+        campaign_name="Austin Bakery",
+        objective="traffic",
+        daily_budget_usd=daily_budget_usd,
+        keywords=["bakery near me"],
+        audience_description="Adults 25-54 near Austin",
+        ad_copy=[AdCopyVariant(headline=headline, description="Visit today.")],
+        call_to_action="Visit Us Today",
+    )
+
+
+def test_rule_checks_flags_banned_term_and_extreme_budget():
+    brand_voice = BrandVoiceProfile(
+        client_id=None, tone="warm", banned_terms=["cheap"], required_disclaimers=[], approved_offers=[]
+    )
+    ir = _ir(daily_budget_usd=50_000, headline="Cheap Pastries Daily")
+
+    flags = run_rule_checks(ir, brand_voice)
+
+    codes = {f.code for f in flags}
+    assert "banned_term" in codes
+    assert "budget_out_of_range" in codes
+    assert all(f.severity == "block" for f in flags if f.code in {"banned_term", "budget_out_of_range"})
+
+
+def test_rule_checks_passes_clean_campaign():
+    brand_voice = BrandVoiceProfile(
+        client_id=None, tone="warm", banned_terms=["cheap"], required_disclaimers=[], approved_offers=[]
+    )
+    flags = run_rule_checks(_ir(), brand_voice)
+    assert flags == []
+
+
+def test_semantic_check_parses_llm_flags():
+    fake_response = json.dumps(
+        {"flags": [{"severity": "warn", "code": "off_brand_tone", "message": "Too casual for this client."}]}
+    )
+    fake_client = FakeAnthropicClient(fake_response)
+
+    flags = run_semantic_check(_ir(), brand_voice=None, anthropic_client=fake_client)
+
+    assert len(flags) == 1
+    assert flags[0].code == "off_brand_tone"
+    assert flags[0].severity == "warn"
