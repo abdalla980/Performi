@@ -3,7 +3,7 @@ import { createHttpApiClient } from './apiClient.http'
 import { useAuth } from './authContext'
 import type { ApiClient } from './types'
 
-const ApiClientContext = createContext<ApiClient | null>(null)
+export const ApiClientContext = createContext<ApiClient | null>(null)
 
 export function ApiClientProvider({ children }: { children: ReactNode }) {
   const { getAuthToken } = useAuth()

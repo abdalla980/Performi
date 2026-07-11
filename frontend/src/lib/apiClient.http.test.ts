@@ -6,7 +6,11 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 function makeClient(fetchFn: ReturnType<typeof vi.fn>) {
-  return createHttpApiClient({ baseUrl: 'http://localhost:8000', getAuthToken: async () => 'token-123', fetchFn })
+  return createHttpApiClient({
+    baseUrl: 'http://localhost:8000',
+    getAuthToken: async () => 'token-123',
+    fetchFn: fetchFn as unknown as typeof fetch,
+  })
 }
 
 describe('createHttpApiClient', () => {
