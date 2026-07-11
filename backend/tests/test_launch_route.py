@@ -7,7 +7,7 @@ from app.services.meta_adapter import adapt_to_meta
 from tests.conftest import make_supabase_jwt
 
 
-def _draft(db_session, google_connected=True, meta_connected=False):
+def _draft(db_session, google_connected=True, meta_connected=False, status="client_approved"):
     agency = Agency(supabase_user_id="sb-launch-1", name="Acme", email="launch@acme.test")
     db_session.add(agency)
     db_session.flush()
@@ -35,7 +35,7 @@ def _draft(db_session, google_connected=True, meta_connected=False):
     )
     draft = CampaignDraft(
         brief_id=brief.id,
-        status="adapted",
+        status=status,
         ir_json=ir.model_dump(mode="json"),
         google_plan_json=adapt_to_google(ir).model_dump(mode="json") if google_connected else None,
         meta_plan_json=adapt_to_meta(ir).model_dump(mode="json") if meta_connected else None,
@@ -136,5 +136,18 @@ def test_launch_rejects_draft_with_no_connected_platform(client, db_session):
     response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
 
     assert response.status_code == 400
+
+    main.app.dependency_overrides.clear()
+
+
+def test_launch_rejects_draft_that_is_not_client_approved(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    draft, headers = _draft(db_session, status="approved")
+
+    response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
+
+    assert response.status_code == 409
 
     main.app.dependency_overrides.clear()

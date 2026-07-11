@@ -33,7 +33,7 @@ interface RawGoogleAdGroup {
   descriptions: string[]
 }
 
-interface RawGooglePlan {
+export interface RawGooglePlan {
   campaign_name: string
   daily_budget_micros: number
   end_date: string | null
@@ -51,7 +51,7 @@ interface RawMetaAdSet {
   call_to_action: string
 }
 
-interface RawMetaPlan {
+export interface RawMetaPlan {
   campaign_name: string
   objective: string
   website_url: string | null
@@ -93,7 +93,7 @@ interface RawGuardrailReport {
   has_blocking_flags: boolean
 }
 
-interface RawPlatformLaunchResult {
+export interface RawPlatformLaunchResult {
   platform: 'google' | 'meta'
   status: 'success' | 'failed'
   external_campaign_id: string | null
@@ -121,7 +121,7 @@ interface RawPlatformProjection {
   estimated_daily_impressions: number
 }
 
-interface RawProjectedMetrics {
+export interface RawProjectedMetrics {
   platforms: RawPlatformProjection[]
   estimated_location_reach: number | null
 }
@@ -172,7 +172,7 @@ interface RawGenerateResult {
   meta_plan: RawMetaPlan | null
 }
 
-function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
+export function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
   return {
     campaignName: raw.campaign_name,
     dailyBudgetMicros: raw.daily_budget_micros,
@@ -188,7 +188,7 @@ function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
   }
 }
 
-function toMetaPlan(raw: RawMetaPlan): MetaCampaignPlan {
+export function toMetaPlan(raw: RawMetaPlan): MetaCampaignPlan {
   return {
     campaignName: raw.campaign_name,
     objective: raw.objective,
@@ -242,7 +242,7 @@ function toGuardrailReport(raw: RawGuardrailReport): GuardrailReport {
   }
 }
 
-function toPlatformLaunchResult(raw: RawPlatformLaunchResult): PlatformLaunchResult {
+export function toPlatformLaunchResult(raw: RawPlatformLaunchResult): PlatformLaunchResult {
   return {
     platform: raw.platform,
     status: raw.status,
@@ -276,7 +276,7 @@ function toPlatformProjection(raw: RawPlatformProjection): PlatformProjection {
   }
 }
 
-function toProjectedMetrics(raw: RawProjectedMetrics): ProjectedMetrics {
+export function toProjectedMetrics(raw: RawProjectedMetrics): ProjectedMetrics {
   return {
     platforms: raw.platforms.map(toPlatformProjection),
     estimatedLocationReach: raw.estimated_location_reach,

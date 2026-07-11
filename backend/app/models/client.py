@@ -13,6 +13,7 @@ class Client(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     agency_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("agencies.id"))
     name: Mapped[str] = mapped_column(String(255))
+    supabase_user_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, default=None)
 
     google_ads_customer_id: Mapped[str | None] = mapped_column(String(32), default=None)
     google_refresh_token_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, default=None)

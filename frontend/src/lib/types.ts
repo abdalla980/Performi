@@ -82,6 +82,8 @@ export type CampaignDraftStatus =
   | 'guardrail_checked'
   | 'approved'
   | 'rejected'
+  | 'client_approved'
+  | 'client_rejected'
   | 'launched'
   | 'failed'
 
@@ -197,4 +199,40 @@ export interface ApiClient {
   launchDraft(draftId: string): Promise<LaunchResponse>
 
   listAuditLog(limit?: number): Promise<AuditLogEntry[]>
+}
+
+export type Role = 'agency' | 'client'
+
+export interface WhoAmI {
+  role: Role
+  id: string
+  name: string
+}
+
+export interface ClientPortalCampaignSummary {
+  id: string
+  briefId: string
+  status: CampaignDraftStatus
+  businessDescription: string
+  budgetUsd: number
+  goals: string
+  createdAt: string
+}
+
+export interface ClientPortalCampaignDetail extends ClientPortalCampaignSummary {
+  websiteUrl: string | null
+  targetLocation: string | null
+  targetAudience: string | null
+  endDate: string | null
+  platforms: Platform[]
+  googlePlan: GoogleCampaignPlan | null
+  metaPlan: MetaCampaignPlan | null
+  projectedMetrics: ProjectedMetrics | null
+  launches: PlatformLaunchResult[]
+}
+
+export interface ClientPortalApiClient {
+  listCampaigns(): Promise<ClientPortalCampaignSummary[]>
+  getCampaign(draftId: string): Promise<ClientPortalCampaignDetail>
+  decideCampaign(draftId: string, decision: 'approved' | 'rejected'): Promise<{ status: string }>
 }

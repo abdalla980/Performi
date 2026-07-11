@@ -35,6 +35,8 @@ def launch_draft(
     draft = db.get(CampaignDraft, draft_id)
     if draft is None or draft.brief.client.agency_id != agency.id:
         raise HTTPException(status_code=404, detail="Draft not found")
+    if draft.status != "client_approved":
+        raise HTTPException(status_code=409, detail="Draft must be approved by the client before launch")
 
     client_row = draft.brief.client
     google_ready = bool(client_row.google_refresh_token_encrypted and draft.google_plan_json)

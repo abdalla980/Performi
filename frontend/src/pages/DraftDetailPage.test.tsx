@@ -44,15 +44,9 @@ function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
 }
 
 describe('DraftDetailPage', () => {
-  it('runs guardrails, then approves and launches once clean', async () => {
+  it('runs guardrails, then approves, and awaits client approval before launch is offered', async () => {
     let draft = baseDraft()
     const guardrail: GuardrailReport = { id: 'gr-1', campaignDraftId: 'draft-1', flags: [], hasBlockingFlags: false }
-    const launch: LaunchResponse = {
-      status: 'launched',
-      externalCampaignId: 'g-1',
-      errorMessage: null,
-      platforms: [{ platform: 'google', status: 'success', externalCampaignId: 'g-1', errorMessage: null }],
-    }
 
     const getBrief = vi.fn(async () => draft)
     const runGuardrails = vi.fn(async () => {
@@ -63,12 +57,8 @@ describe('DraftDetailPage', () => {
       draft = { ...draft, status: 'approved' }
       return { status: 'approved' }
     })
-    const launchDraft = vi.fn(async () => {
-      draft = { ...draft, status: 'launched', launches: launch.platforms }
-      return launch
-    })
 
-    const apiClient = createFakeApiClient({ getBrief, runGuardrails, approveDraft, launchDraft })
+    const apiClient = createFakeApiClient({ getBrief, runGuardrails, approveDraft })
 
     renderWithProviders(<DraftDetailPage />, {
       apiClient,
@@ -84,10 +74,29 @@ describe('DraftDetailPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: /^approve$/i }))
     await waitFor(() => expect(approveDraft).toHaveBeenCalled())
 
+    expect(await screen.findByText(/awaiting the client's approval/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^launch$/i })).not.toBeInTheDocument()
+  })
+
+  it('shows the launch button once the client has approved, and launches', async () => {
+    const draft = baseDraft({ status: 'client_approved' })
+    const launch: LaunchResponse = {
+      status: 'launched',
+      externalCampaignId: 'g-1',
+      errorMessage: null,
+      platforms: [{ platform: 'google', status: 'success', externalCampaignId: 'g-1', errorMessage: null }],
+    }
+    const launchDraft = vi.fn().mockResolvedValue(launch)
+    const apiClient = createFakeApiClient({ getBrief: async () => draft, launchDraft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
     await userEvent.click(await screen.findByRole('button', { name: /^launch$/i }))
     await waitFor(() => expect(launchDraft).toHaveBeenCalledWith('draft-1'))
-
-    expect(await screen.findByText(/Campaign ID: g-1/)).toBeInTheDocument()
   })
 
   it('disables approve when the guardrail report has blocking flags', async () => {

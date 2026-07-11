@@ -5,7 +5,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.db import Base, engine, get_db  # get_db re-exported for dependency_overrides in tests
-from app.routers import approvals, audit, briefs, clients, config, generation, guardrails, launches, me
+from app.routers import (
+    approvals,
+    audit,
+    briefs,
+    client_portal,
+    clients,
+    config,
+    generation,
+    guardrails,
+    launches,
+    me,
+    whoami,
+)
 
 
 @asynccontextmanager
@@ -23,6 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.include_router(me.router)
+app.include_router(whoami.router)
 app.include_router(config.router)
 app.include_router(clients.router)
 app.include_router(briefs.router)
@@ -31,6 +44,7 @@ app.include_router(guardrails.router)
 app.include_router(approvals.router)
 app.include_router(launches.router)
 app.include_router(audit.router)
+app.include_router(client_portal.router)
 
 
 @app.get("/health")
