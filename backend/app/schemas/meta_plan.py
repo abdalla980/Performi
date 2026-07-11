@@ -13,4 +13,5 @@ class MetaAdSet(BaseModel):
 class MetaCampaignPlan(BaseModel):
     campaign_name: str
     objective: str
+    website_url: str | None = None
     ad_sets: list[MetaAdSet]

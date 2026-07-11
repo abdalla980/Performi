@@ -12,5 +12,5 @@ class GenerateDraftResponse(BaseModel):
     brief_id: uuid.UUID
     status: str
     mode: Literal["live", "demo"] = "live"
-    google_plan: GoogleCampaignPlan
-    meta_plan: MetaCampaignPlan
+    google_plan: GoogleCampaignPlan | None = None
+    meta_plan: MetaCampaignPlan | None = None

@@ -69,6 +69,45 @@ def test_generate_draft_returns_google_plan(client, db_session, monkeypatch):
     main.app.dependency_overrides.clear()
 
 
+def test_generate_draft_only_generates_selected_platforms(client, db_session, monkeypatch):
+    from app import main
+    from app.config import get_settings
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "")
+    get_settings.cache_clear()
+
+    agency = Agency(supabase_user_id="sb-gen-platforms", name="Acme", email="gen-platforms@acme.test")
+    db_session.add(agency)
+    db_session.flush()
+    client_row = Client(agency_id=agency.id, name="Client A")
+    db_session.add(client_row)
+    db_session.flush()
+    brief = Brief(
+        client_id=client_row.id,
+        business_description="Bakery",
+        budget_usd=600,
+        goals="Drive foot traffic",
+        platforms=["google"],
+    )
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id)
+    db_session.add(draft)
+    db_session.commit()
+
+    headers = {"Authorization": f"Bearer {make_supabase_jwt(agency.supabase_user_id)}"}
+    response = client.post(f"/briefs/{draft.id}/generate", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["google_plan"] is not None
+    assert body["meta_plan"] is None
+
+    get_settings.cache_clear()
+    main.app.dependency_overrides.clear()
+
+
 def test_generate_draft_falls_back_to_demo_when_anthropic_not_configured(client, db_session, monkeypatch):
     from app import main
     from app.config import get_settings

@@ -40,12 +40,13 @@ def generate_draft(
         mode = "demo"
         ir = generate_demo_campaign_ir(draft.brief, brand_voice=brand_voice)
 
-    google_plan = adapt_to_google(ir)
-    meta_plan = adapt_to_meta(ir)
+    platforms = draft.brief.platforms
+    google_plan = adapt_to_google(ir) if "google" in platforms else None
+    meta_plan = adapt_to_meta(ir) if "meta" in platforms else None
 
     draft.ir_json = ir.model_dump(mode="json")
-    draft.google_plan_json = google_plan.model_dump(mode="json")
-    draft.meta_plan_json = meta_plan.model_dump(mode="json")
+    draft.google_plan_json = google_plan.model_dump(mode="json") if google_plan else None
+    draft.meta_plan_json = meta_plan.model_dump(mode="json") if meta_plan else None
     draft.status = "adapted"
     db.commit()
 

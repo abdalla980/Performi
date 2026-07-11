@@ -221,6 +221,53 @@ describe('createHttpApiClient', () => {
     expect(drafts[0]).toMatchObject({ id: 'draft-1', clientName: 'Acme Bakery', status: 'pending_generation' })
   })
 
+  it('submitBriefsBatch posts all optional targeting/scheduling fields', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse([]))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.submitBriefsBatch([
+      {
+        clientId: 'client-1',
+        businessDescription: 'Bakery',
+        budgetUsd: 500,
+        goals: 'Traffic',
+        websiteUrl: 'https://acmebakery.test',
+        targetLocation: 'Austin, TX',
+        targetAudience: 'Families within 5 miles',
+        endDate: '2026-12-31',
+        platforms: ['google'],
+        competitors: 'Big Bakery Co',
+        uniqueSellingPoints: 'Family recipes since 1990',
+        excludedKeywords: ['free', 'cheap'],
+      },
+    ])
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/briefs/batch',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          briefs: [
+            {
+              client_id: 'client-1',
+              business_description: 'Bakery',
+              budget_usd: 500,
+              goals: 'Traffic',
+              website_url: 'https://acmebakery.test',
+              target_location: 'Austin, TX',
+              target_audience: 'Families within 5 miles',
+              end_date: '2026-12-31',
+              platforms: ['google'],
+              competitors: 'Big Bakery Co',
+              unique_selling_points: 'Family recipes since 1990',
+              excluded_keywords: ['free', 'cheap'],
+            },
+          ],
+        }),
+      }),
+    )
+  })
+
   it('listBriefs omits the query string when no clientId is given', async () => {
     const fetchFn = vi.fn().mockResolvedValue(jsonResponse([]))
     const apiClient = makeClient(fetchFn)
@@ -256,15 +303,26 @@ describe('createHttpApiClient', () => {
         guardrail_flag_count: 1,
         has_blocking_flags: false,
         created_at: '2026-07-09T00:00:00Z',
+        website_url: 'https://acmebakery.test',
+        target_location: 'Austin, TX',
+        target_audience: 'Families within 5 miles',
+        end_date: '2026-12-31',
+        platforms: ['google', 'meta'],
+        competitors: 'Big Bakery Co',
+        unique_selling_points: 'Family recipes since 1990',
+        excluded_keywords: ['free'],
         google_plan: {
           campaign_name: 'Austin Bakery',
           daily_budget_micros: 16_500_000,
           end_date: null,
+          final_url: 'https://acmebakery.test',
+          negative_keywords: ['free'],
           ad_groups: [{ name: 'Primary', keywords: ['bakery'], headlines: ['Fresh'], descriptions: ['Visit today.'] }],
         },
         meta_plan: {
           campaign_name: 'Austin Bakery',
           objective: 'traffic',
+          website_url: 'https://acmebakery.test',
           ad_sets: [
             {
               name: 'Primary',
@@ -289,11 +347,22 @@ describe('createHttpApiClient', () => {
       expect.objectContaining({ method: 'GET' }),
     )
     expect(draft.googlePlan?.campaignName).toBe('Austin Bakery')
+    expect(draft.googlePlan?.finalUrl).toBe('https://acmebakery.test')
+    expect(draft.googlePlan?.negativeKeywords).toEqual(['free'])
     expect(draft.metaPlan?.adSets[0].dailyBudgetCents).toBe(1650)
+    expect(draft.metaPlan?.websiteUrl).toBe('https://acmebakery.test')
     expect(draft.guardrail?.flags).toEqual([{ severity: 'warn', code: 'x', message: 'y' }])
     expect(draft.launches).toEqual([
       { platform: 'google', status: 'success', externalCampaignId: 'g-1', errorMessage: null },
     ])
+    expect(draft.websiteUrl).toBe('https://acmebakery.test')
+    expect(draft.targetLocation).toBe('Austin, TX')
+    expect(draft.targetAudience).toBe('Families within 5 miles')
+    expect(draft.endDate).toBe('2026-12-31')
+    expect(draft.platforms).toEqual(['google', 'meta'])
+    expect(draft.competitors).toBe('Big Bakery Co')
+    expect(draft.uniqueSellingPoints).toBe('Family recipes since 1990')
+    expect(draft.excludedKeywords).toEqual(['free'])
   })
 
   it('generateDraft posts and maps mode + both plans', async () => {
@@ -307,9 +376,16 @@ describe('createHttpApiClient', () => {
           campaign_name: 'Austin Bakery',
           daily_budget_micros: 16_500_000,
           end_date: null,
+          final_url: null,
+          negative_keywords: [],
           ad_groups: [],
         },
-        meta_plan: { campaign_name: 'Austin Bakery', objective: 'traffic', ad_sets: [] },
+        meta_plan: {
+          campaign_name: 'Austin Bakery',
+          objective: 'traffic',
+          website_url: null,
+          ad_sets: [],
+        },
       }),
     )
     const apiClient = makeClient(fetchFn)
@@ -321,7 +397,7 @@ describe('createHttpApiClient', () => {
       expect.objectContaining({ method: 'POST' }),
     )
     expect(result.mode).toBe('demo')
-    expect(result.googlePlan.campaignName).toBe('Austin Bakery')
+    expect(result.googlePlan?.campaignName).toBe('Austin Bakery')
   })
 
   it('runGuardrails posts and maps the flag report', async () => {

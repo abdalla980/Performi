@@ -19,8 +19,23 @@ function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
     guardrailFlagCount: 0,
     hasBlockingFlags: false,
     createdAt: '2026-07-09T00:00:00Z',
-    googlePlan: { campaignName: 'Austin Bakery', dailyBudgetMicros: 16_500_000, endDate: null, adGroups: [] },
-    metaPlan: { campaignName: 'Austin Bakery', objective: 'traffic', adSets: [] },
+    websiteUrl: null,
+    targetLocation: null,
+    targetAudience: null,
+    endDate: null,
+    platforms: ['google', 'meta'],
+    competitors: null,
+    uniqueSellingPoints: null,
+    excludedKeywords: [],
+    googlePlan: {
+      campaignName: 'Austin Bakery',
+      dailyBudgetMicros: 16_500_000,
+      endDate: null,
+      finalUrl: null,
+      negativeKeywords: [],
+      adGroups: [],
+    },
+    metaPlan: { campaignName: 'Austin Bakery', objective: 'traffic', websiteUrl: null, adSets: [] },
     guardrail: null,
     launches: [],
     ...overrides,
@@ -95,5 +110,45 @@ describe('DraftDetailPage', () => {
 
     expect(await screen.findByText('Uses a banned term.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^approve$/i })).toBeDisabled()
+  })
+
+  it('shows the extended brief details and plan-level extras when present', async () => {
+    const draft = baseDraft({
+      websiteUrl: 'https://acmebakery.test',
+      targetLocation: 'Austin, TX',
+      targetAudience: 'Families within 5 miles',
+      endDate: '2026-12-31',
+      platforms: ['google'],
+      competitors: 'Big Bakery Co',
+      uniqueSellingPoints: 'Family recipes since 1990',
+      excludedKeywords: ['free', 'cheap'],
+      googlePlan: {
+        campaignName: 'Austin Bakery',
+        dailyBudgetMicros: 16_500_000,
+        endDate: null,
+        finalUrl: 'https://acmebakery.test',
+        negativeKeywords: ['free', 'cheap'],
+        adGroups: [],
+      },
+      metaPlan: null,
+    })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+
+    expect(screen.getByText('Austin, TX')).toBeInTheDocument()
+    expect(screen.getByText('Families within 5 miles')).toBeInTheDocument()
+    expect(screen.getByText('2026-12-31')).toBeInTheDocument()
+    expect(screen.getByText('Big Bakery Co')).toBeInTheDocument()
+    expect(screen.getByText('Family recipes since 1990')).toBeInTheDocument()
+    expect(screen.getByText('free, cheap')).toBeInTheDocument()
+    expect(screen.getAllByText('Google Ads').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('https://acmebakery.test').length).toBeGreaterThan(0)
   })
 })

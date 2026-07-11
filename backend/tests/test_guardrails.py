@@ -56,6 +56,25 @@ def test_rule_checks_passes_clean_campaign():
     assert flags == []
 
 
+def test_rule_checks_flags_keyword_overlapping_negative_keywords():
+    ir = CampaignIR(
+        campaign_name="Austin Bakery",
+        objective="traffic",
+        daily_budget_usd=16.5,
+        keywords=["bakery near me", "cheap bakery"],
+        audience_description="Adults 25-54 near Austin",
+        ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
+        call_to_action="Visit Us Today",
+        negative_keywords=["Cheap Bakery"],
+    )
+
+    flags = run_rule_checks(ir, brand_voice=None)
+
+    codes = {f.code for f in flags}
+    assert "keyword_overlaps_negative" in codes
+    assert all(f.severity == "warn" for f in flags if f.code == "keyword_overlaps_negative")
+
+
 def test_semantic_check_parses_llm_flags():
     fake_response = json.dumps(
         {"flags": [{"severity": "warn", "code": "off_brand_tone", "message": "Too casual for this client."}]}

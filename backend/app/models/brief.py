@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Float, ForeignKey, String
+from sqlalchemy import JSON, Date, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -15,6 +15,14 @@ class Brief(Base):
     business_description: Mapped[str] = mapped_column(String(2000))
     budget_usd: Mapped[float] = mapped_column(Float)
     goals: Mapped[str] = mapped_column(String(1000))
+    website_url: Mapped[str | None] = mapped_column(String(2000), default=None)
+    target_location: Mapped[str | None] = mapped_column(String(500), default=None)
+    target_audience: Mapped[str | None] = mapped_column(String(1000), default=None)
+    end_date: Mapped[date | None] = mapped_column(Date, default=None)
+    platforms: Mapped[list[str]] = mapped_column(JSON, default=lambda: ["google", "meta"])
+    competitors: Mapped[str | None] = mapped_column(String(1000), default=None)
+    unique_selling_points: Mapped[str | None] = mapped_column(String(1000), default=None)
+    excluded_keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     client: Mapped["Client"] = relationship()

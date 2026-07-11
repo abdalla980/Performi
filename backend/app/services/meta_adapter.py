@@ -12,4 +12,6 @@ def adapt_to_meta(ir: CampaignIR) -> MetaCampaignPlan:
         creative_body=primary_copy.description,
         call_to_action=ir.call_to_action,
     )
-    return MetaCampaignPlan(campaign_name=ir.campaign_name, objective=ir.objective, ad_sets=[ad_set])
+    return MetaCampaignPlan(
+        campaign_name=ir.campaign_name, objective=ir.objective, website_url=ir.website_url, ad_sets=[ad_set]
+    )

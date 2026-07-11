@@ -207,6 +207,74 @@ def test_get_brief_detail_returns_full_draft(client, db_session):
     main.app.dependency_overrides.clear()
 
 
+def test_submit_brief_with_full_details_are_returned_in_detail(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    response = client.post(
+        "/briefs",
+        json={
+            "client_id": str(client_row.id),
+            "business_description": "Local bakery in Austin",
+            "budget_usd": 500,
+            "goals": "Drive foot traffic",
+            "website_url": "https://acmebakery.test",
+            "target_location": "Austin, TX",
+            "target_audience": "Families within 5 miles",
+            "end_date": "2026-12-31",
+            "platforms": ["google"],
+            "competitors": "Big Bakery Co",
+            "unique_selling_points": "Family recipes since 1990",
+            "excluded_keywords": ["free", "cheap"],
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201
+    draft_id = response.json()["id"]
+
+    detail = client.get(f"/briefs/{draft_id}", headers=headers).json()
+    assert detail["website_url"] == "https://acmebakery.test"
+    assert detail["target_location"] == "Austin, TX"
+    assert detail["target_audience"] == "Families within 5 miles"
+    assert detail["end_date"] == "2026-12-31"
+    assert detail["platforms"] == ["google"]
+    assert detail["competitors"] == "Big Bakery Co"
+    assert detail["unique_selling_points"] == "Family recipes since 1990"
+    assert detail["excluded_keywords"] == ["free", "cheap"]
+
+    main.app.dependency_overrides.clear()
+
+
+def test_submit_brief_defaults_optional_fields(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    response = client.post(
+        "/briefs",
+        json={
+            "client_id": str(client_row.id),
+            "business_description": "Local bakery in Austin",
+            "budget_usd": 500,
+            "goals": "Drive foot traffic",
+        },
+        headers=headers,
+    )
+    draft_id = response.json()["id"]
+
+    detail = client.get(f"/briefs/{draft_id}", headers=headers).json()
+    assert detail["website_url"] is None
+    assert detail["target_location"] is None
+    assert detail["end_date"] is None
+    assert detail["platforms"] == ["google", "meta"]
+    assert detail["excluded_keywords"] == []
+
+    main.app.dependency_overrides.clear()
+
+
 def test_get_brief_detail_rejects_other_agency(client, db_session):
     from app import main
 

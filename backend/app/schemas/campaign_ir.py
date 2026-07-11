@@ -18,3 +18,5 @@ class CampaignIR(BaseModel):
     audience_description: str
     ad_copy: list[AdCopyVariant]
     call_to_action: str
+    website_url: str | None = None
+    negative_keywords: list[str] = []

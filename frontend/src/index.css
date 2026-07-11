@@ -26,37 +26,10 @@
 
   --radius: 0.625rem;
 
-  color-scheme: light dark;
-  font: 15px/1.5 system-ui, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+  font: 15px/1.5 'Poppins', system-ui, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0b0e14;
-    --foreground: #e2e8f0;
-    --card: #12151f;
-    --card-foreground: #e2e8f0;
-    --muted: #1a1e2a;
-    --muted-foreground: #94a3b8;
-    --border: #232836;
-    --input: #232836;
-    --ring: #818cf8;
-
-    --primary: #6366f1;
-    --primary-foreground: #ffffff;
-    --primary-hover: #818cf8;
-
-    --destructive: #f87171;
-    --destructive-foreground: #0b0e14;
-    --destructive-muted: #2a1416;
-    --destructive-border: #4c1d1d;
-
-    --success: #4ade80;
-    --success-muted: #10231a;
-    --success-border: #14532d;
-  }
 }
 
 body {

@@ -9,6 +9,8 @@ export interface GoogleCampaignPlan {
   campaignName: string
   dailyBudgetMicros: number
   endDate: string | null
+  finalUrl: string | null
+  negativeKeywords: string[]
   adGroups: GoogleAdGroupPlan[]
 }
 
@@ -24,6 +26,7 @@ export interface MetaAdSetPlan {
 export interface MetaCampaignPlan {
   campaignName: string
   objective: string
+  websiteUrl: string | null
   adSets: MetaAdSetPlan[]
 }
 
@@ -56,11 +59,21 @@ export interface ClientDetail extends Client {
   brandVoice: BrandVoiceProfile | null
 }
 
+export type Platform = 'google' | 'meta'
+
 export interface BriefInput {
   clientId: string
   businessDescription: string
   budgetUsd: number
   goals: string
+  websiteUrl?: string
+  targetLocation?: string
+  targetAudience?: string
+  endDate?: string
+  platforms?: Platform[]
+  competitors?: string
+  uniqueSellingPoints?: string
+  excludedKeywords?: string[]
 }
 
 export type CampaignDraftStatus =
@@ -107,6 +120,14 @@ export interface PlatformLaunchResult {
 }
 
 export interface DraftDetail extends DraftSummary {
+  websiteUrl: string | null
+  targetLocation: string | null
+  targetAudience: string | null
+  endDate: string | null
+  platforms: Platform[]
+  competitors: string | null
+  uniqueSellingPoints: string | null
+  excludedKeywords: string[]
   googlePlan: GoogleCampaignPlan | null
   metaPlan: MetaCampaignPlan | null
   guardrail: GuardrailReport | null
@@ -139,8 +160,8 @@ export interface GenerateResult {
   briefId: string
   status: CampaignDraftStatus
   mode: 'live' | 'demo'
-  googlePlan: GoogleCampaignPlan
-  metaPlan: MetaCampaignPlan
+  googlePlan: GoogleCampaignPlan | null
+  metaPlan: MetaCampaignPlan | null
 }
 
 export interface ApiClient {

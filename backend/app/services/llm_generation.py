@@ -18,10 +18,16 @@ def _build_prompt(brief: Brief, brand_voice: BrandVoiceProfile | None) -> str:
         else "(none)"
     )
     offers = ", ".join(brand_voice.approved_offers) if brand_voice and brand_voice.approved_offers else "(none)"
+    excluded_keywords = ", ".join(brief.excluded_keywords) if brief.excluded_keywords else "(none)"
     return (
         f"Business description: {brief.business_description}\n"
         f"Daily/total budget in USD: {brief.budget_usd}\n"
         f"Goals: {brief.goals}\n"
+        f"Target location: {brief.target_location or '(not specified)'}\n"
+        f"Target audience: {brief.target_audience or '(not specified)'}\n"
+        f"Competitors to differentiate from: {brief.competitors or '(none)'}\n"
+        f"Unique selling points: {brief.unique_selling_points or '(none)'}\n"
+        f"Excluded/negative keywords (never propose these as target keywords): {excluded_keywords}\n"
         f"Required tone: {tone}\n"
         f"Banned terms (never use): {banned}\n"
         f"Required disclaimers: {disclaimers}\n"
@@ -44,4 +50,11 @@ def generate_campaign_ir(
         messages=[{"role": "user", "content": prompt}],
     )
     raw_text = response.content[0].text
-    return CampaignIR.model_validate_json(raw_text)
+    ir = CampaignIR.model_validate_json(raw_text)
+
+    # Facts, not creative content — trust the brief over whatever the model produced.
+    if brief.end_date is not None:
+        ir.end_date = brief.end_date
+    ir.website_url = brief.website_url
+    ir.negative_keywords = list(brief.excluded_keywords or [])
+    return ir

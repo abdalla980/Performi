@@ -44,6 +44,17 @@ def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> li
                     )
                 )
 
+    negative_keywords = {keyword.lower() for keyword in ir.negative_keywords}
+    overlap = sorted({keyword for keyword in ir.keywords if keyword.lower() in negative_keywords})
+    if overlap:
+        flags.append(
+            GuardrailFlag(
+                severity="warn",
+                code="keyword_overlaps_negative",
+                message=f"Generated keyword(s) {', '.join(overlap)} overlap with excluded/negative keywords.",
+            )
+        )
+
     return flags
 
 

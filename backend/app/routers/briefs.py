@@ -51,6 +51,14 @@ def _draft_detail(db: Session, draft: CampaignDraft) -> DraftDetailResponse:
     launches = db.scalars(select(LaunchRecord).where(LaunchRecord.campaign_draft_id == draft.id)).all()
     return DraftDetailResponse(
         **_draft_summary(draft, report).model_dump(),
+        website_url=draft.brief.website_url,
+        target_location=draft.brief.target_location,
+        target_audience=draft.brief.target_audience,
+        end_date=draft.brief.end_date,
+        platforms=draft.brief.platforms,
+        competitors=draft.brief.competitors,
+        unique_selling_points=draft.brief.unique_selling_points,
+        excluded_keywords=draft.brief.excluded_keywords,
         google_plan=GoogleCampaignPlan.model_validate(draft.google_plan_json) if draft.google_plan_json else None,
         meta_plan=MetaCampaignPlan.model_validate(draft.meta_plan_json) if draft.meta_plan_json else None,
         guardrail=GuardrailReportResponse(
@@ -83,6 +91,14 @@ def _create_one(body: BriefCreateRequest, db: Session, agency: Agency) -> Campai
         business_description=body.business_description,
         budget_usd=body.budget_usd,
         goals=body.goals,
+        website_url=body.website_url,
+        target_location=body.target_location,
+        target_audience=body.target_audience,
+        end_date=body.end_date,
+        platforms=body.platforms,
+        competitors=body.competitors,
+        unique_selling_points=body.unique_selling_points,
+        excluded_keywords=body.excluded_keywords,
     )
     db.add(brief)
     db.flush()

@@ -88,3 +88,73 @@ def test_generate_campaign_ir_includes_brand_voice_in_prompt():
     assert "warm, community-focused" in prompt
     assert "cheap" in prompt
     assert "Free coffee with pastry purchase" in prompt
+
+
+def test_generate_campaign_ir_includes_new_brief_details_in_prompt():
+    brief = Brief(
+        client_id=None,
+        business_description="Local bakery in Austin",
+        budget_usd=500,
+        goals="Drive foot traffic",
+        target_location="Austin, TX",
+        target_audience="Families within 5 miles",
+        competitors="Big Bakery Co",
+        unique_selling_points="Family recipes since 1990",
+        excluded_keywords=["free", "cheap"],
+    )
+    fake_response = json.dumps(
+        {
+            "campaign_name": "Austin Bakery Foot Traffic",
+            "objective": "traffic",
+            "daily_budget_usd": 16.5,
+            "end_date": None,
+            "keywords": ["bakery near me"],
+            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
+            "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
+            "call_to_action": "Visit Us Today",
+        }
+    )
+    fake_client = FakeAnthropicClient(fake_response)
+
+    generate_campaign_ir(brief, anthropic_client=fake_client)
+
+    prompt = fake_client.last_prompt["messages"][0]["content"]
+    assert "Austin, TX" in prompt
+    assert "Families within 5 miles" in prompt
+    assert "Big Bakery Co" in prompt
+    assert "Family recipes since 1990" in prompt
+    assert "free" in prompt
+    assert "cheap" in prompt
+
+
+def test_generate_campaign_ir_overrides_facts_from_brief():
+    from datetime import date
+
+    brief = Brief(
+        client_id=None,
+        business_description="Local bakery in Austin",
+        budget_usd=500,
+        goals="Drive foot traffic",
+        website_url="https://acmebakery.test",
+        end_date=date(2026, 12, 31),
+        excluded_keywords=["free", "cheap"],
+    )
+    fake_response = json.dumps(
+        {
+            "campaign_name": "Austin Bakery Foot Traffic",
+            "objective": "traffic",
+            "daily_budget_usd": 16.5,
+            "end_date": "2099-01-01",
+            "keywords": ["bakery near me"],
+            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
+            "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
+            "call_to_action": "Visit Us Today",
+        }
+    )
+    fake_client = FakeAnthropicClient(fake_response)
+
+    ir = generate_campaign_ir(brief, anthropic_client=fake_client)
+
+    assert ir.end_date == date(2026, 12, 31)
+    assert ir.website_url == "https://acmebakery.test"
+    assert ir.negative_keywords == ["free", "cheap"]

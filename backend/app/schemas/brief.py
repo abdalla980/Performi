@@ -1,5 +1,6 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -14,6 +15,14 @@ class BriefCreateRequest(BaseModel):
     business_description: str
     budget_usd: float
     goals: str
+    website_url: str | None = None
+    target_location: str | None = None
+    target_audience: str | None = None
+    end_date: date | None = None
+    platforms: list[Literal["google", "meta"]] = ["google", "meta"]
+    competitors: str | None = None
+    unique_selling_points: str | None = None
+    excluded_keywords: list[str] = []
 
 
 class BriefBatchCreateRequest(BaseModel):
@@ -43,6 +52,14 @@ class DraftSummaryResponse(BaseModel):
 
 
 class DraftDetailResponse(DraftSummaryResponse):
+    website_url: str | None = None
+    target_location: str | None = None
+    target_audience: str | None = None
+    end_date: date | None = None
+    platforms: list[str] = []
+    competitors: str | None = None
+    unique_selling_points: str | None = None
+    excluded_keywords: list[str] = []
     google_plan: GoogleCampaignPlan | None = None
     meta_plan: MetaCampaignPlan | None = None
     guardrail: GuardrailReportResponse | None = None

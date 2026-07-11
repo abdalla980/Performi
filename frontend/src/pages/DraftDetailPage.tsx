@@ -16,7 +16,24 @@ import { Textarea } from '../components/ui/textarea'
 function GooglePlanView({ plan }: { plan: GoogleCampaignPlan }) {
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">${(plan.dailyBudgetMicros / 1_000_000).toFixed(2)}/day</p>
+      <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+        <span>${(plan.dailyBudgetMicros / 1_000_000).toFixed(2)}/day</span>
+        {plan.finalUrl && (
+          <a href={plan.finalUrl} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">
+            {plan.finalUrl}
+          </a>
+        )}
+      </div>
+      {plan.negativeKeywords.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Negative keywords:</span>
+          {plan.negativeKeywords.map((keyword) => (
+            <Badge key={keyword} variant="destructive">
+              {keyword}
+            </Badge>
+          ))}
+        </div>
+      )}
       {plan.adGroups.map((adGroup) => (
         <div key={adGroup.name} className="rounded-md border border-border p-4">
           <h3 className="text-sm font-semibold text-foreground">{adGroup.name}</h3>
@@ -48,7 +65,14 @@ function GooglePlanView({ plan }: { plan: GoogleCampaignPlan }) {
 function MetaPlanView({ plan }: { plan: MetaCampaignPlan }) {
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-muted-foreground">Objective: {plan.objective}</p>
+      <div className="flex items-center justify-between gap-4 text-sm text-muted-foreground">
+        <span>Objective: {plan.objective}</span>
+        {plan.websiteUrl && (
+          <a href={plan.websiteUrl} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">
+            {plan.websiteUrl}
+          </a>
+        )}
+      </div>
       {plan.adSets.map((adSet) => (
         <div key={adSet.name} className="rounded-md border border-border p-4">
           <div className="flex items-center justify-between">
@@ -114,6 +138,23 @@ export function DraftDetailPage() {
     rejectMutation.error ??
     launchMutation.error
 
+  const detailRows: Array<{ label: string; value: string; href?: string }> = [
+    { label: 'Budget', value: `$${draft.budgetUsd.toFixed(0)}` },
+    { label: 'Goals', value: draft.goals },
+    { label: 'Platforms', value: draft.platforms.map((p) => (p === 'google' ? 'Google Ads' : 'Meta')).join(', ') },
+  ]
+  if (draft.websiteUrl) detailRows.push({ label: 'Website', value: draft.websiteUrl, href: draft.websiteUrl })
+  if (draft.targetLocation) detailRows.push({ label: 'Target location', value: draft.targetLocation })
+  if (draft.targetAudience) detailRows.push({ label: 'Target audience', value: draft.targetAudience })
+  if (draft.endDate) detailRows.push({ label: 'End date', value: draft.endDate })
+  if (draft.competitors) detailRows.push({ label: 'Competitors', value: draft.competitors })
+  if (draft.uniqueSellingPoints) {
+    detailRows.push({ label: 'Unique selling points', value: draft.uniqueSellingPoints })
+  }
+  if (draft.excludedKeywords.length > 0) {
+    detailRows.push({ label: 'Excluded keywords', value: draft.excludedKeywords.join(', ') })
+  }
+
   return (
     <div className="flex max-w-3xl flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
@@ -126,14 +167,23 @@ export function DraftDetailPage() {
 
       <Card>
         <CardContent className="grid grid-cols-2 gap-4 pt-6 text-sm">
-          <div>
-            <p className="text-muted-foreground">Budget</p>
-            <p className="font-medium text-foreground">${draft.budgetUsd.toFixed(0)}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Goals</p>
-            <p className="font-medium text-foreground">{draft.goals}</p>
-          </div>
+          {detailRows.map((row) => (
+            <div key={row.label}>
+              <p className="text-muted-foreground">{row.label}</p>
+              {row.href ? (
+                <a
+                  href={row.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="truncate font-medium text-primary hover:underline"
+                >
+                  {row.value}
+                </a>
+              ) : (
+                <p className="font-medium text-foreground">{row.value}</p>
+              )}
+            </div>
+          ))}
         </CardContent>
       </Card>
 

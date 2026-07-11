@@ -50,23 +50,38 @@ def generate_demo_campaign_ir(brief: Brief, brand_voice: BrandVoiceProfile | Non
     configured (see /config/status)."""
     banned_terms = brand_voice.banned_terms if brand_voice else []
     approved_offers = brand_voice.approved_offers if brand_voice else []
+    excluded_keywords = brief.excluded_keywords or []
 
     description = _strip_banned(brief.business_description, banned_terms)
     objective = _infer_objective(brief.goals)
     daily_budget_usd = max(1.0, min(10_000.0, round(brief.budget_usd / 30, 2)))
     cta = _CTA_BY_OBJECTIVE[objective]
 
-    offer_line = approved_offers[0] if approved_offers else f"Discover {description.lower()}."
+    if approved_offers:
+        offer_line = approved_offers[0]
+    elif brief.unique_selling_points:
+        offer_line = brief.unique_selling_points
+    else:
+        offer_line = f"Discover {description.lower()}."
     headline = description.title()[:30] or "Quality You Can Trust"
     ad_description = _strip_banned(f"{offer_line} {cta}.", banned_terms)
+
+    audience_description = brief.target_audience or f"Prospective customers interested in {description.lower()}"
+    if brief.target_location:
+        audience_description = f"{audience_description} in {brief.target_location}"
+
+    excluded_lower = {keyword.lower() for keyword in excluded_keywords}
+    keywords = [keyword for keyword in _build_keywords(description) if keyword.lower() not in excluded_lower]
 
     return CampaignIR(
         campaign_name=_strip_banned(f"{description.title()} — {objective.title()} Campaign", banned_terms),
         objective=objective,
         daily_budget_usd=daily_budget_usd,
-        end_date=None,
-        keywords=_build_keywords(description),
-        audience_description=f"Prospective customers interested in {description.lower()}",
+        end_date=brief.end_date,
+        keywords=keywords or ["local business", "near me"],
+        audience_description=audience_description,
         ad_copy=[AdCopyVariant(headline=headline, description=ad_description)],
         call_to_action=cta,
+        website_url=brief.website_url,
+        negative_keywords=list(excluded_keywords),
     )

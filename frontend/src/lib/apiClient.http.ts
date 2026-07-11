@@ -14,6 +14,7 @@ import type {
   GuardrailReport,
   LaunchResponse,
   MetaCampaignPlan,
+  Platform,
   PlatformLaunchResult,
 } from './types'
 
@@ -34,6 +35,8 @@ interface RawGooglePlan {
   campaign_name: string
   daily_budget_micros: number
   end_date: string | null
+  final_url: string | null
+  negative_keywords: string[]
   ad_groups: RawGoogleAdGroup[]
 }
 
@@ -49,6 +52,7 @@ interface RawMetaAdSet {
 interface RawMetaPlan {
   campaign_name: string
   objective: string
+  website_url: string | null
   ad_sets: RawMetaAdSet[]
 }
 
@@ -109,6 +113,14 @@ interface RawDraftSummary {
 }
 
 interface RawDraftDetail extends RawDraftSummary {
+  website_url: string | null
+  target_location: string | null
+  target_audience: string | null
+  end_date: string | null
+  platforms: Platform[]
+  competitors: string | null
+  unique_selling_points: string | null
+  excluded_keywords: string[]
   google_plan: RawGooglePlan | null
   meta_plan: RawMetaPlan | null
   guardrail: RawGuardrailReport | null
@@ -141,8 +153,8 @@ interface RawGenerateResult {
   brief_id: string
   status: DraftSummary['status']
   mode: 'live' | 'demo'
-  google_plan: RawGooglePlan
-  meta_plan: RawMetaPlan
+  google_plan: RawGooglePlan | null
+  meta_plan: RawMetaPlan | null
 }
 
 function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
@@ -150,6 +162,8 @@ function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
     campaignName: raw.campaign_name,
     dailyBudgetMicros: raw.daily_budget_micros,
     endDate: raw.end_date,
+    finalUrl: raw.final_url,
+    negativeKeywords: raw.negative_keywords,
     adGroups: raw.ad_groups.map((group) => ({
       name: group.name,
       keywords: group.keywords,
@@ -163,6 +177,7 @@ function toMetaPlan(raw: RawMetaPlan): MetaCampaignPlan {
   return {
     campaignName: raw.campaign_name,
     objective: raw.objective,
+    websiteUrl: raw.website_url,
     adSets: raw.ad_sets.map((adSet) => ({
       name: adSet.name,
       dailyBudgetCents: adSet.daily_budget_cents,
@@ -240,6 +255,14 @@ function toDraftSummary(raw: RawDraftSummary): DraftSummary {
 function toDraftDetail(raw: RawDraftDetail): DraftDetail {
   return {
     ...toDraftSummary(raw),
+    websiteUrl: raw.website_url,
+    targetLocation: raw.target_location,
+    targetAudience: raw.target_audience,
+    endDate: raw.end_date,
+    platforms: raw.platforms,
+    competitors: raw.competitors,
+    uniqueSellingPoints: raw.unique_selling_points,
+    excludedKeywords: raw.excluded_keywords,
     googlePlan: raw.google_plan ? toGooglePlan(raw.google_plan) : null,
     metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
     guardrail: raw.guardrail ? toGuardrailReport(raw.guardrail) : null,
@@ -280,8 +303,8 @@ function toGenerateResult(raw: RawGenerateResult): GenerateResult {
     briefId: raw.brief_id,
     status: raw.status,
     mode: raw.mode,
-    googlePlan: toGooglePlan(raw.google_plan),
-    metaPlan: toMetaPlan(raw.meta_plan),
+    googlePlan: raw.google_plan ? toGooglePlan(raw.google_plan) : null,
+    metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
   }
 }
 
@@ -349,6 +372,14 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
           business_description: brief.businessDescription,
           budget_usd: brief.budgetUsd,
           goals: brief.goals,
+          website_url: brief.websiteUrl,
+          target_location: brief.targetLocation,
+          target_audience: brief.targetAudience,
+          end_date: brief.endDate,
+          platforms: brief.platforms,
+          competitors: brief.competitors,
+          unique_selling_points: brief.uniqueSellingPoints,
+          excluded_keywords: brief.excludedKeywords,
         })),
       })
       return raw.map(toDraftSummary)

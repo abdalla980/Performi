@@ -20,3 +20,22 @@ def test_adapt_to_google_converts_budget_and_groups_keywords():
     assert len(plan.ad_groups) == 1
     assert plan.ad_groups[0].keywords == ["bakery near me", "austin pastries"]
     assert "Fresh Pastries Daily" in plan.ad_groups[0].headlines
+
+
+def test_adapt_to_google_carries_final_url_and_negative_keywords():
+    ir = CampaignIR(
+        campaign_name="Austin Bakery Foot Traffic",
+        objective="traffic",
+        daily_budget_usd=16.5,
+        keywords=["bakery near me"],
+        audience_description="Adults 25-54 near Austin",
+        ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
+        call_to_action="Visit Us Today",
+        website_url="https://acmebakery.test",
+        negative_keywords=["free", "cheap"],
+    )
+
+    plan = adapt_to_google(ir)
+
+    assert plan.final_url == "https://acmebakery.test"
+    assert plan.negative_keywords == ["free", "cheap"]
