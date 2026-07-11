@@ -7,6 +7,7 @@ Hand-onboard a client onto the portal via Supabase Auth:
 """
 import argparse
 import sys
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -18,7 +19,7 @@ from app.models.client import Client
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--supabase-user-id", required=True)
-    parser.add_argument("--client-id", required=True)
+    parser.add_argument("--client-id", required=True, type=uuid.UUID)
     args = parser.parse_args()
 
     db = SessionLocal()
