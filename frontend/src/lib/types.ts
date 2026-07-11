@@ -119,6 +119,18 @@ export interface PlatformLaunchResult {
   errorMessage: string | null
 }
 
+export interface PlatformProjection {
+  platform: Platform
+  dailyBudgetUsd: number
+  estimatedDailyClicks: number
+  estimatedDailyImpressions: number
+}
+
+export interface ProjectedMetrics {
+  platforms: PlatformProjection[]
+  estimatedLocationReach: number | null
+}
+
 export interface DraftDetail extends DraftSummary {
   websiteUrl: string | null
   targetLocation: string | null
@@ -132,6 +144,7 @@ export interface DraftDetail extends DraftSummary {
   metaPlan: MetaCampaignPlan | null
   guardrail: GuardrailReport | null
   launches: PlatformLaunchResult[]
+  projectedMetrics: ProjectedMetrics | null
 }
 
 export interface LaunchResponse {

@@ -16,6 +16,8 @@ import type {
   MetaCampaignPlan,
   Platform,
   PlatformLaunchResult,
+  PlatformProjection,
+  ProjectedMetrics,
 } from './types'
 
 interface HttpApiClientOptions {
@@ -112,6 +114,18 @@ interface RawDraftSummary {
   created_at: string
 }
 
+interface RawPlatformProjection {
+  platform: Platform
+  daily_budget_usd: number
+  estimated_daily_clicks: number
+  estimated_daily_impressions: number
+}
+
+interface RawProjectedMetrics {
+  platforms: RawPlatformProjection[]
+  estimated_location_reach: number | null
+}
+
 interface RawDraftDetail extends RawDraftSummary {
   website_url: string | null
   target_location: string | null
@@ -125,6 +139,7 @@ interface RawDraftDetail extends RawDraftSummary {
   meta_plan: RawMetaPlan | null
   guardrail: RawGuardrailReport | null
   launches: RawPlatformLaunchResult[]
+  projected_metrics: RawProjectedMetrics | null
 }
 
 interface RawLaunchResponse {
@@ -252,6 +267,22 @@ function toDraftSummary(raw: RawDraftSummary): DraftSummary {
   }
 }
 
+function toPlatformProjection(raw: RawPlatformProjection): PlatformProjection {
+  return {
+    platform: raw.platform,
+    dailyBudgetUsd: raw.daily_budget_usd,
+    estimatedDailyClicks: raw.estimated_daily_clicks,
+    estimatedDailyImpressions: raw.estimated_daily_impressions,
+  }
+}
+
+function toProjectedMetrics(raw: RawProjectedMetrics): ProjectedMetrics {
+  return {
+    platforms: raw.platforms.map(toPlatformProjection),
+    estimatedLocationReach: raw.estimated_location_reach,
+  }
+}
+
 function toDraftDetail(raw: RawDraftDetail): DraftDetail {
   return {
     ...toDraftSummary(raw),
@@ -267,6 +298,7 @@ function toDraftDetail(raw: RawDraftDetail): DraftDetail {
     metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
     guardrail: raw.guardrail ? toGuardrailReport(raw.guardrail) : null,
     launches: raw.launches.map(toPlatformLaunchResult),
+    projectedMetrics: raw.projected_metrics ? toProjectedMetrics(raw.projected_metrics) : null,
   }
 }
 

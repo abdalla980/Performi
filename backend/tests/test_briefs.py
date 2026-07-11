@@ -275,6 +275,72 @@ def test_submit_brief_defaults_optional_fields(client, db_session):
     main.app.dependency_overrides.clear()
 
 
+def test_get_brief_detail_includes_projected_metrics_after_generation(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief = Brief(
+        client_id=client_row.id,
+        business_description="Bakery",
+        budget_usd=600,
+        goals="Foot traffic",
+        target_location="Austin, TX",
+        platforms=["google", "meta"],
+    )
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(
+        brief_id=brief.id,
+        status="adapted",
+        ir_json={
+            "campaign_name": "Bakery Campaign",
+            "objective": "traffic",
+            "daily_budget_usd": 20.0,
+            "end_date": None,
+            "keywords": ["bakery"],
+            "audience_description": "Adults near Austin",
+            "ad_copy": [{"headline": "Fresh", "description": "Visit."}],
+            "call_to_action": "Visit Us",
+            "website_url": None,
+            "negative_keywords": [],
+        },
+    )
+    db_session.add(draft)
+    db_session.commit()
+
+    response = client.get(f"/briefs/{draft.id}", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["projected_metrics"]["platforms"]) == 2
+    assert body["projected_metrics"]["estimated_location_reach"] is not None
+
+    main.app.dependency_overrides.clear()
+
+
+def test_get_brief_detail_projected_metrics_is_null_before_generation(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Foot traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id)
+    db_session.add(draft)
+    db_session.commit()
+
+    response = client.get(f"/briefs/{draft.id}", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["projected_metrics"] is None
+
+    main.app.dependency_overrides.clear()
+
+
 def test_get_brief_detail_rejects_other_agency(client, db_session):
     from app import main
 

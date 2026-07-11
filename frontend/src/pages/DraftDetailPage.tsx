@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, XCircle } from 'lucide-react'
 import { useApiClient } from '../lib/apiClientContext'
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../lib/statusDisplay'
-import type { GoogleCampaignPlan, MetaCampaignPlan } from '../lib/types'
+import type { GoogleCampaignPlan, MetaCampaignPlan, Platform, ProjectedMetrics } from '../lib/types'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
@@ -59,6 +59,76 @@ function GooglePlanView({ plan }: { plan: GoogleCampaignPlan }) {
         </div>
       ))}
     </div>
+  )
+}
+
+const PLATFORM_LABEL: Record<Platform, string> = { google: 'Google Ads', meta: 'Meta' }
+// Fixed categorical order (google, meta) — validated for CVD-safe contrast against
+// this app's white card surface; never reassign or cycle these per-render.
+const PLATFORM_COLOR: Record<Platform, string> = { google: '#2a78d6', meta: '#1baf7a' }
+
+function formatCompactNumber(value: number): string {
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+}
+
+function StatTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+    </div>
+  )
+}
+
+function ProjectedMetricsSection({ metrics }: { metrics: ProjectedMetrics }) {
+  const totalDailyClicks = metrics.platforms.reduce((sum, p) => sum + p.estimatedDailyClicks, 0)
+  const totalDailyImpressions = metrics.platforms.reduce((sum, p) => sum + p.estimatedDailyImpressions, 0)
+  const maxClicks = Math.max(...metrics.platforms.map((p) => p.estimatedDailyClicks), 1)
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Projected performance</CardTitle>
+        <CardDescription>
+          Estimated from budget and industry-benchmark CPC/CTR assumptions — not guaranteed results.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-6">
+        <div className="grid grid-cols-3 gap-3">
+          <StatTile label="Est. daily impressions" value={formatCompactNumber(totalDailyImpressions)} />
+          <StatTile label="Est. daily clicks" value={formatCompactNumber(totalDailyClicks)} />
+          <StatTile
+            label="Est. reach in target location"
+            value={
+              metrics.estimatedLocationReach != null ? formatCompactNumber(metrics.estimatedLocationReach) : '—'
+            }
+          />
+        </div>
+
+        {metrics.platforms.length > 1 && (
+          <div className="flex flex-col gap-3">
+            <p className="text-xs font-medium text-muted-foreground">Estimated daily clicks by platform</p>
+            {metrics.platforms.map((platform) => (
+              <div key={platform.platform} className="flex items-center gap-3">
+                <span className="w-24 shrink-0 text-sm text-foreground">{PLATFORM_LABEL[platform.platform]}</span>
+                <div className="h-6 flex-1 rounded-r-[4px] bg-muted">
+                  <div
+                    className="h-6 rounded-r-[4px]"
+                    style={{
+                      width: `${Math.max((platform.estimatedDailyClicks / maxClicks) * 100, 4)}%`,
+                      backgroundColor: PLATFORM_COLOR[platform.platform],
+                    }}
+                  />
+                </div>
+                <span className="w-12 shrink-0 text-right text-sm font-medium text-foreground">
+                  {platform.estimatedDailyClicks.toFixed(1)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
@@ -217,6 +287,8 @@ export function DraftDetailPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      {draft.projectedMetrics && <ProjectedMetricsSection metrics={draft.projectedMetrics} />}
 
       {draft.status === 'adapted' && (
         <Button onClick={() => guardrailsMutation.mutate()} disabled={guardrailsMutation.isPending} className="self-start">

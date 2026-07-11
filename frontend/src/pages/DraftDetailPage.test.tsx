@@ -38,6 +38,7 @@ function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
     metaPlan: { campaignName: 'Austin Bakery', objective: 'traffic', websiteUrl: null, adSets: [] },
     guardrail: null,
     launches: [],
+    projectedMetrics: null,
     ...overrides,
   }
 }
@@ -150,5 +151,47 @@ describe('DraftDetailPage', () => {
     expect(screen.getByText('free, cheap')).toBeInTheDocument()
     expect(screen.getAllByText('Google Ads').length).toBeGreaterThan(0)
     expect(screen.getAllByText('https://acmebakery.test').length).toBeGreaterThan(0)
+  })
+
+  it('shows projected performance stat tiles and a per-platform chart when present', async () => {
+    const draft = baseDraft({
+      platforms: ['google', 'meta'],
+      projectedMetrics: {
+        platforms: [
+          { platform: 'google', dailyBudgetUsd: 10, estimatedDailyClicks: 5, estimatedDailyImpressions: 250 },
+          { platform: 'meta', dailyBudgetUsd: 10, estimatedDailyClicks: 10, estimatedDailyImpressions: 1000 },
+        ],
+        estimatedLocationReach: 37500,
+      },
+    })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Projected performance')
+
+    expect(screen.getByText('1.3K')).toBeInTheDocument()
+    expect(screen.getByText('15')).toBeInTheDocument()
+    expect(screen.getByText('37.5K')).toBeInTheDocument()
+    expect(screen.getByText('5.0')).toBeInTheDocument()
+    expect(screen.getByText('10.0')).toBeInTheDocument()
+  })
+
+  it('omits the projected performance section when there is no projected data yet', async () => {
+    const draft = baseDraft({ projectedMetrics: null })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    expect(screen.queryByText('Projected performance')).not.toBeInTheDocument()
   })
 })

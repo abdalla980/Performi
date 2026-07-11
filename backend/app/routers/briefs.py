@@ -16,12 +16,14 @@ from app.schemas.brief import (
     DraftDetailResponse,
     DraftSummaryResponse,
 )
+from app.schemas.campaign_ir import CampaignIR
 from app.schemas.google_plan import GoogleCampaignPlan
 from app.schemas.guardrail import GuardrailFlag, GuardrailReportResponse
 from app.schemas.launch import PlatformLaunchResult
 from app.schemas.meta_plan import MetaCampaignPlan
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
+from app.services.projections import compute_projected_metrics
 
 router = APIRouter(prefix="/briefs", tags=["briefs"])
 
@@ -78,6 +80,13 @@ def _draft_detail(db: Session, draft: CampaignDraft) -> DraftDetailResponse:
             )
             for launch in launches
         ],
+        projected_metrics=compute_projected_metrics(
+            CampaignIR.model_validate(draft.ir_json),
+            draft.brief.platforms,
+            bool(draft.brief.target_location),
+        )
+        if draft.ir_json
+        else None,
     )
 
 

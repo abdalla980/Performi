@@ -8,6 +8,7 @@ from app.schemas.google_plan import GoogleCampaignPlan
 from app.schemas.guardrail import GuardrailReportResponse
 from app.schemas.launch import PlatformLaunchResult
 from app.schemas.meta_plan import MetaCampaignPlan
+from app.schemas.projection import ProjectedMetrics
 
 
 class BriefCreateRequest(BaseModel):
@@ -64,3 +65,4 @@ class DraftDetailResponse(DraftSummaryResponse):
     meta_plan: MetaCampaignPlan | None = None
     guardrail: GuardrailReportResponse | None = None
     launches: list[PlatformLaunchResult] = []
+    projected_metrics: ProjectedMetrics | None = None

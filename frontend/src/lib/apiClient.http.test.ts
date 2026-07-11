@@ -365,6 +365,70 @@ describe('createHttpApiClient', () => {
     expect(draft.excludedKeywords).toEqual(['free'])
   })
 
+  it('getBrief maps projected_metrics when present', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: 'draft-1',
+        brief_id: 'brief-1',
+        client_id: 'client-1',
+        client_name: 'Acme Bakery',
+        status: 'adapted',
+        business_description: 'Bakery',
+        budget_usd: 500,
+        goals: 'Traffic',
+        guardrail_flag_count: 0,
+        has_blocking_flags: false,
+        created_at: '2026-07-09T00:00:00Z',
+        google_plan: null,
+        meta_plan: null,
+        guardrail: null,
+        launches: [],
+        projected_metrics: {
+          platforms: [
+            { platform: 'google', daily_budget_usd: 10, estimated_daily_clicks: 5, estimated_daily_impressions: 250 },
+          ],
+          estimated_location_reach: 7500,
+        },
+      }),
+    )
+    const apiClient = makeClient(fetchFn)
+
+    const draft = await apiClient.getBrief('draft-1')
+
+    expect(draft.projectedMetrics).toEqual({
+      platforms: [{ platform: 'google', dailyBudgetUsd: 10, estimatedDailyClicks: 5, estimatedDailyImpressions: 250 }],
+      estimatedLocationReach: 7500,
+    })
+  })
+
+  it('getBrief maps a null projected_metrics', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: 'draft-1',
+        brief_id: 'brief-1',
+        client_id: 'client-1',
+        client_name: 'Acme Bakery',
+        status: 'pending_generation',
+        business_description: 'Bakery',
+        budget_usd: 500,
+        goals: 'Traffic',
+        guardrail_flag_count: 0,
+        has_blocking_flags: false,
+        created_at: '2026-07-09T00:00:00Z',
+        google_plan: null,
+        meta_plan: null,
+        guardrail: null,
+        launches: [],
+        projected_metrics: null,
+      }),
+    )
+    const apiClient = makeClient(fetchFn)
+
+    const draft = await apiClient.getBrief('draft-1')
+
+    expect(draft.projectedMetrics).toBeNull()
+  })
+
   it('generateDraft posts and maps mode + both plans', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse({
