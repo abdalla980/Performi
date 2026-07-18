@@ -39,3 +39,17 @@ class RealMetaAdsPushClient:
             }
         )
         return campaign[Campaign.Field.id]
+
+
+class DemoAwareMetaAdsPushClient:
+    """Routes to the real Graph API unless `ad_account_id` is a demo-connect
+    placeholder (see clients.py's meta_demo_connect, which stamps ad_account_id as
+    f"demo-{client_id[:8]}"). META_APP_ID/SECRET being real and configured does not
+    mean a given client's token is — this check catches that case."""
+
+    def push(self, plan: MetaCampaignPlan, access_token: str, ad_account_id: str) -> str:
+        if ad_account_id.startswith("demo-"):
+            return FakeMetaAdsPushClient(external_id=f"demo-meta-{ad_account_id}").push(
+                plan, access_token, ad_account_id
+            )
+        return RealMetaAdsPushClient().push(plan, access_token, ad_account_id)

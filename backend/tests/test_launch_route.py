@@ -7,16 +7,23 @@ from app.services.meta_adapter import adapt_to_meta
 from tests.conftest import make_supabase_jwt
 
 
-def _draft(db_session, google_connected=True, meta_connected=False, status="client_approved"):
+def _draft(
+    db_session,
+    google_connected=True,
+    meta_connected=False,
+    status="client_approved",
+    google_demo=False,
+    meta_demo=False,
+):
     agency = Agency(supabase_user_id="sb-launch-1", name="Acme", email="launch@acme.test")
     db_session.add(agency)
     db_session.flush()
     client_row = Client(
         agency_id=agency.id,
         name="Client A",
-        google_ads_customer_id="123-456-7890" if google_connected else None,
+        google_ads_customer_id=("demo-fake0001" if google_demo else "123-456-7890") if google_connected else None,
         google_refresh_token_encrypted=b"not-real-encrypted-bytes" if google_connected else None,
-        meta_ad_account_id="act_999" if meta_connected else None,
+        meta_ad_account_id=("demo-fake0001" if meta_demo else "act_999") if meta_connected else None,
         meta_access_token_encrypted=b"not-real-encrypted-bytes" if meta_connected else None,
     )
     db_session.add(client_row)
@@ -123,6 +130,51 @@ def test_launch_pushes_to_both_platforms_independently(client, db_session, monke
     by_platform = {p["platform"]: p for p in body["platforms"]}
     assert by_platform["google"]["status"] == "failed"
     assert by_platform["meta"]["status"] == "success"
+
+    main.app.dependency_overrides.clear()
+
+
+def test_launch_uses_demo_push_for_demo_connected_google_client(client, db_session, monkeypatch):
+    """Regression test: a demo-connected client (google/demo-connect) must not fall
+    through to RealGoogleAdsPushClient, which would burn retries calling the real API
+    with fabricated credentials and always report status=failed. No dependency
+    override here — this exercises the actual default client the route wires up."""
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr("app.services.campaign_push.decrypt_token", lambda blob: "demo-google-refresh-token")
+    draft, headers = _draft(db_session, google_connected=True, google_demo=True)
+
+    response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "launched"
+    assert body["platforms"] == [
+        {"platform": "google", "status": "success", "external_campaign_id": "demo-google-demo-fake0001", "error_message": None}
+    ]
+
+    main.app.dependency_overrides.clear()
+
+
+def test_launch_uses_demo_push_for_demo_connected_meta_client(client, db_session, monkeypatch):
+    """Same regression, Meta side: META_APP_ID/SECRET are real and configured in this
+    dev environment, so a naive "is meta configured" check would still misroute a
+    demo-connected client's fake token straight to the real Graph API."""
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr("app.services.campaign_push.decrypt_token", lambda blob: "demo-meta-access-token")
+    draft, headers = _draft(db_session, google_connected=False, meta_connected=True, meta_demo=True)
+
+    response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "launched"
+    assert body["platforms"] == [
+        {"platform": "meta", "status": "success", "external_campaign_id": "demo-meta-demo-fake0001", "error_message": None}
+    ]
 
     main.app.dependency_overrides.clear()
 

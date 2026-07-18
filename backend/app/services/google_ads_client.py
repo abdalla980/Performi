@@ -65,3 +65,17 @@ class RealGoogleAdsPushClient:
             ad_group_service.mutate_ad_groups(customer_id=customer_id, operations=[group_op])
 
         return campaign_result.resource_name
+
+
+class DemoAwareGoogleAdsPushClient:
+    """Routes to the real Google Ads API unless `customer_id` is a demo-connect
+    placeholder (see clients.py's google_demo_connect, which stamps customer_id as
+    f"demo-{client_id[:8]}"). Without this check, a demo-connected client's fabricated
+    refresh token would reach RealGoogleAdsPushClient and always fail."""
+
+    def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str:
+        if customer_id.startswith("demo-"):
+            return FakeGoogleAdsPushClient(external_id=f"demo-google-{customer_id}").push(
+                plan, refresh_token, customer_id
+            )
+        return RealGoogleAdsPushClient().push(plan, refresh_token, customer_id)

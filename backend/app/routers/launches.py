@@ -10,20 +10,23 @@ from app.schemas.launch import LaunchResponse, PlatformLaunchResult
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
 from app.services.campaign_push import push_draft_with_clients
-from app.services.google_ads_client import GoogleAdsPushPort, RealGoogleAdsPushClient
-from app.services.meta_ads_client import MetaAdsPushPort, RealMetaAdsPushClient
+from app.services.google_ads_client import DemoAwareGoogleAdsPushClient, GoogleAdsPushPort
+from app.services.meta_ads_client import DemoAwareMetaAdsPushClient, MetaAdsPushPort
 
 router = APIRouter(prefix="/briefs", tags=["launches"])
 
 
 def get_google_ads_push_client() -> GoogleAdsPushPort:
-    """Overridden in tests with a FakeGoogleAdsPushClient."""
-    return RealGoogleAdsPushClient()
+    """Overridden in tests with a FakeGoogleAdsPushClient. Defaults to the demo-aware
+    wrapper (not RealGoogleAdsPushClient directly) so demo-connected clients don't hit
+    the real API with fabricated credentials."""
+    return DemoAwareGoogleAdsPushClient()
 
 
 def get_meta_ads_push_client() -> MetaAdsPushPort:
-    """Overridden in tests with a FakeMetaAdsPushClient."""
-    return RealMetaAdsPushClient()
+    """Overridden in tests with a FakeMetaAdsPushClient. Defaults to the demo-aware
+    wrapper (not RealMetaAdsPushClient directly) — see DemoAwareMetaAdsPushClient."""
+    return DemoAwareMetaAdsPushClient()
 
 
 @router.post("/{draft_id}/launch", response_model=LaunchResponse)
