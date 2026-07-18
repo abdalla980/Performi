@@ -157,6 +157,10 @@ interface RawAuditEntry {
   created_at: string
 }
 
+interface RawOAuthAuthorizeUrl {
+  authorize_url: string
+}
+
 interface RawConfigStatus {
   anthropic_configured: boolean
   google_ads_configured: boolean
@@ -395,6 +399,16 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
 
     async connectMetaDemo(clientId: string): Promise<void> {
       await post(`/clients/${clientId}/meta/demo-connect`)
+    },
+
+    async getGoogleOAuthUrl(clientId: string): Promise<string> {
+      const raw = await get<RawOAuthAuthorizeUrl>(`/clients/${clientId}/google/oauth/start`)
+      return raw.authorize_url
+    },
+
+    async getMetaOAuthUrl(clientId: string): Promise<string> {
+      const raw = await get<RawOAuthAuthorizeUrl>(`/clients/${clientId}/meta/oauth/start`)
+      return raw.authorize_url
     },
 
     async submitBriefsBatch(briefs: BriefInput[]): Promise<DraftSummary[]> {

@@ -188,6 +188,8 @@ export interface ApiClient {
   setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile>
   connectGoogleDemo(clientId: string): Promise<void>
   connectMetaDemo(clientId: string): Promise<void>
+  getGoogleOAuthUrl(clientId: string): Promise<string>
+  getMetaOAuthUrl(clientId: string): Promise<string>
 
   submitBriefsBatch(briefs: BriefInput[]): Promise<DraftSummary[]>
   listBriefs(clientId?: string): Promise<DraftSummary[]>

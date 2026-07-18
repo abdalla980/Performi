@@ -16,6 +16,8 @@ export function createFakeApiClient(overrides: Partial<ApiClient> = {}): ApiClie
     setBrandVoice: notImplemented('setBrandVoice'),
     connectGoogleDemo: notImplemented('connectGoogleDemo'),
     connectMetaDemo: notImplemented('connectMetaDemo'),
+    getGoogleOAuthUrl: notImplemented('getGoogleOAuthUrl'),
+    getMetaOAuthUrl: notImplemented('getMetaOAuthUrl'),
     submitBriefsBatch: notImplemented('submitBriefsBatch'),
     listBriefs: notImplemented('listBriefs'),
     getBrief: notImplemented('getBrief'),

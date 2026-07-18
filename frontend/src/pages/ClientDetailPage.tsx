@@ -70,6 +70,14 @@ export function ClientDetailPage() {
     mutationFn: () => apiClient.connectMetaDemo(clientId),
     onSuccess: invalidateClient,
   })
+  const connectGoogleLiveMutation = useMutation({
+    mutationFn: () => apiClient.getGoogleOAuthUrl(clientId),
+    onSuccess: (authorizeUrl) => window.location.assign(authorizeUrl),
+  })
+  const connectMetaLiveMutation = useMutation({
+    mutationFn: () => apiClient.getMetaOAuthUrl(clientId),
+    onSuccess: (authorizeUrl) => window.location.assign(authorizeUrl),
+  })
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading client…</p>
@@ -90,8 +98,8 @@ export function ClientDetailPage() {
           <CardTitle className="text-base">Ad account connections</CardTitle>
           <CardDescription>
             {anyPlatformUnconfigured
-              ? "Live OAuth isn't configured for this workspace yet — connect in demo mode to exercise the full pipeline."
-              : 'Live account connection is coming soon; demo mode is available in the meantime.'}
+              ? "Live OAuth isn't configured yet for every platform — connect in demo mode to exercise the full pipeline in the meantime."
+              : 'Connect a real account, or use demo mode to exercise the pipeline without one.'}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
@@ -103,13 +111,23 @@ export function ClientDetailPage() {
             {client.googleConnected ? (
               <Badge variant="success">Connected</Badge>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => connectGoogleMutation.mutate()}
-                disabled={connectGoogleMutation.isPending}
-              >
-                {connectGoogleMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
-              </Button>
+              <div className="flex gap-2">
+                {configStatus?.googleAdsConfigured && (
+                  <Button
+                    onClick={() => connectGoogleLiveMutation.mutate()}
+                    disabled={connectGoogleLiveMutation.isPending}
+                  >
+                    {connectGoogleLiveMutation.isPending ? 'Redirecting…' : 'Connect (Live)'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => connectGoogleMutation.mutate()}
+                  disabled={connectGoogleMutation.isPending}
+                >
+                  {connectGoogleMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
+                </Button>
+              </div>
             )}
           </div>
           <div className="flex items-center justify-between rounded-md border border-border p-3">
@@ -120,13 +138,20 @@ export function ClientDetailPage() {
             {client.metaConnected ? (
               <Badge variant="success">Connected</Badge>
             ) : (
-              <Button
-                variant="outline"
-                onClick={() => connectMetaMutation.mutate()}
-                disabled={connectMetaMutation.isPending}
-              >
-                {connectMetaMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
-              </Button>
+              <div className="flex gap-2">
+                {configStatus?.metaConfigured && (
+                  <Button onClick={() => connectMetaLiveMutation.mutate()} disabled={connectMetaLiveMutation.isPending}>
+                    {connectMetaLiveMutation.isPending ? 'Redirecting…' : 'Connect (Live)'}
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => connectMetaMutation.mutate()}
+                  disabled={connectMetaMutation.isPending}
+                >
+                  {connectMetaMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>

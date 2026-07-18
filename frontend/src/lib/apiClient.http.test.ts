@@ -184,6 +184,28 @@ describe('createHttpApiClient', () => {
     )
   })
 
+  it('getGoogleOAuthUrl and getMetaOAuthUrl GET the oauth/start routes and return the authorize URL', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ authorize_url: 'https://accounts.google.com/o/oauth2/v2/auth?...' }))
+      .mockResolvedValueOnce(jsonResponse({ authorize_url: 'https://www.facebook.com/v20.0/dialog/oauth?...' }))
+    const apiClient = makeClient(fetchFn)
+
+    const googleUrl = await apiClient.getGoogleOAuthUrl('client-1')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1/google/oauth/start',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(googleUrl).toBe('https://accounts.google.com/o/oauth2/v2/auth?...')
+
+    const metaUrl = await apiClient.getMetaOAuthUrl('client-1')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1/meta/oauth/start',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(metaUrl).toBe('https://www.facebook.com/v20.0/dialog/oauth?...')
+  })
+
   it('submitBriefsBatch posts an array of snake_case briefs and maps the drafts', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse([

@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.db import get_db
 from app.encryption import encrypt_token
 from app.models.agency import Agency
@@ -13,6 +14,7 @@ from app.models.brand_voice import BrandVoiceProfile
 from app.models.client import Client
 from app.schemas.brand_voice import BrandVoiceProfileRequest, BrandVoiceProfileResponse
 from app.schemas.client import ClientCreateRequest, ClientDetailResponse, ClientResponse
+from app.schemas.oauth import OAuthAuthorizeUrlResponse
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
 from app.services.google_oauth import build_authorize_url, exchange_code_for_tokens
@@ -107,24 +109,34 @@ def set_brand_voice(
     return profile
 
 
-@router.get("/{client_id}/google/oauth/start")
+@router.get("/{client_id}/google/oauth/start", response_model=OAuthAuthorizeUrlResponse)
 def google_oauth_start(
     client_id: uuid.UUID,
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
-) -> RedirectResponse:
+) -> OAuthAuthorizeUrlResponse:
+    """Called via an authenticated fetch from the SPA (not a raw browser navigation),
+    so the Authorization header still applies here. The frontend does the actual
+    browser redirect to authorize_url itself once it has this response."""
     _get_owned_client(db, client_id, agency)
-    return RedirectResponse(build_authorize_url(state=str(client_id)))
+    return OAuthAuthorizeUrlResponse(authorize_url=build_authorize_url(state=str(client_id)))
 
 
-@router.get("/{client_id}/google/oauth/callback")
+@router.get("/google/oauth/callback")
 def google_oauth_callback(
-    client_id: uuid.UUID,
+    state: str,
     code: str,
     db: Session = Depends(get_db),
-    agency: Agency = Depends(get_current_agency),
-) -> dict[str, str]:
-    client = _get_owned_client(db, client_id, agency)
+) -> RedirectResponse:
+    """This path must exactly match GOOGLE_ADS_OAUTH_REDIRECT_URI (registered with
+    Google) since it's hit by a raw browser redirect from Google's consent screen,
+    which carries no Authorization header — client identity comes from `state`
+    (set to the client_id by google_oauth_start) instead of get_current_agency.
+    Ownership was already checked when that agency called /oauth/start."""
+    settings = get_settings()
+    client = db.get(Client, uuid.UUID(state))
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
 
     tokens = exchange_code_for_tokens(code, http_client=httpx.Client())
     client.google_refresh_token_encrypted = encrypt_token(tokens.refresh_token)
@@ -132,32 +144,36 @@ def google_oauth_callback(
 
     record_audit_event(
         db,
-        agency_id=agency.id,
+        agency_id=client.agency_id,
         client_id=client.id,
         event_type="client.google_connected",
         payload={},
     )
-    return {"status": "connected"}
+    return RedirectResponse(f"{settings.frontend_base_url}/clients/{client.id}?connected=google")
 
 
-@router.get("/{client_id}/meta/oauth/start")
+@router.get("/{client_id}/meta/oauth/start", response_model=OAuthAuthorizeUrlResponse)
 def meta_oauth_start(
     client_id: uuid.UUID,
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
-) -> RedirectResponse:
+) -> OAuthAuthorizeUrlResponse:
     _get_owned_client(db, client_id, agency)
-    return RedirectResponse(meta_oauth.build_authorize_url(state=str(client_id)))
+    return OAuthAuthorizeUrlResponse(authorize_url=meta_oauth.build_authorize_url(state=str(client_id)))
 
 
-@router.get("/{client_id}/meta/oauth/callback")
+@router.get("/meta/oauth/callback")
 def meta_oauth_callback(
-    client_id: uuid.UUID,
+    state: str,
     code: str,
     db: Session = Depends(get_db),
-    agency: Agency = Depends(get_current_agency),
-) -> dict[str, str]:
-    client = _get_owned_client(db, client_id, agency)
+) -> RedirectResponse:
+    """See google_oauth_callback — same reasoning applies (must match
+    META_OAUTH_REDIRECT_URI exactly, no Authorization header available)."""
+    settings = get_settings()
+    client = db.get(Client, uuid.UUID(state))
+    if client is None:
+        raise HTTPException(status_code=404, detail="Client not found")
 
     tokens = meta_oauth.exchange_code_for_tokens(code, http_client=httpx.Client())
     client.meta_access_token_encrypted = encrypt_token(tokens.access_token)
@@ -165,12 +181,12 @@ def meta_oauth_callback(
 
     record_audit_event(
         db,
-        agency_id=agency.id,
+        agency_id=client.agency_id,
         client_id=client.id,
         event_type="client.meta_connected",
         payload={},
     )
-    return {"status": "connected"}
+    return RedirectResponse(f"{settings.frontend_base_url}/clients/{client.id}?connected=meta")
 
 
 @router.post("/{client_id}/google/demo-connect")
