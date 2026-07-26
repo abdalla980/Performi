@@ -38,7 +38,7 @@ def launch_draft(
     draft = db.get(CampaignDraft, draft_id)
     if draft is None or draft.brief.client.agency_id != agency.id:
         raise HTTPException(status_code=404, detail="Draft not found")
-    if draft.status != "client_approved":
+    if draft.status not in ("client_approved", "failed"):
         raise HTTPException(status_code=409, detail="Draft must be approved by the client before launch")
 
     client_row = draft.brief.client
@@ -75,6 +75,7 @@ def launch_draft(
                 status=r.status,
                 external_campaign_id=r.external_campaign_id,
                 error_message=r.error_message,
+                attempted_at=r.attempted_at,
             )
             for r in records
         ],

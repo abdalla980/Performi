@@ -134,3 +134,98 @@ def test_meta_oauth_callback_stores_token_and_redirects_with_no_auth_header(clie
     assert detail["meta_connected"] is True
 
     main.app.dependency_overrides.clear()
+
+
+def test_set_google_ad_account_requires_prior_connect(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, headers = _agency_headers(db_session, "sb-oauth-7", "oauth7@acme.test")
+    client_id = client.post("/clients", json={"name": "Client A"}, headers=headers).json()["id"]
+
+    response = client.put(
+        f"/clients/{client_id}/google/ad-account", json={"customer_id": "123-456-7890"}, headers=headers
+    )
+
+    assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()
+
+
+def test_set_google_ad_account_after_connect(client, db_session, monkeypatch):
+    from app import main
+    from app.routers import clients as clients_router
+    from app.services.google_oauth import GoogleTokenResponse
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, headers = _agency_headers(db_session, "sb-oauth-8", "oauth8@acme.test")
+    client_id = client.post("/clients", json={"name": "Client A"}, headers=headers).json()["id"]
+    monkeypatch.setattr(
+        clients_router,
+        "exchange_code_for_tokens",
+        lambda code, http_client: GoogleTokenResponse(refresh_token="real-refresh-token", access_token="at-1"),
+    )
+    client.get(f"/clients/google/oauth/callback?code=auth-code&state={client_id}", follow_redirects=False)
+
+    response = client.put(
+        f"/clients/{client_id}/google/ad-account", json={"customer_id": "123-456-7890"}, headers=headers
+    )
+
+    assert response.status_code == 200
+    assert response.json()["google_ads_customer_id"] == "123-456-7890"
+
+    main.app.dependency_overrides.clear()
+
+
+def test_set_google_ad_account_rejects_unowned_client(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, owner_headers = _agency_headers(db_session, "sb-oauth-9", "oauth9@acme.test")
+    _, other_headers = _agency_headers(db_session, "sb-oauth-10", "oauth10@acme.test")
+    client_id = client.post("/clients", json={"name": "Client A"}, headers=owner_headers).json()["id"]
+
+    response = client.put(
+        f"/clients/{client_id}/google/ad-account", json={"customer_id": "123-456-7890"}, headers=other_headers
+    )
+
+    assert response.status_code == 404
+
+    main.app.dependency_overrides.clear()
+
+
+def test_set_meta_ad_account_requires_prior_connect(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, headers = _agency_headers(db_session, "sb-oauth-11", "oauth11@acme.test")
+    client_id = client.post("/clients", json={"name": "Client A"}, headers=headers).json()["id"]
+
+    response = client.put(f"/clients/{client_id}/meta/ad-account", json={"ad_account_id": "act_123"}, headers=headers)
+
+    assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()
+
+
+def test_set_meta_ad_account_after_connect(client, db_session, monkeypatch):
+    from app import main
+    from app.routers import clients as clients_router
+    from app.services.meta_oauth import MetaTokenResponse
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, headers = _agency_headers(db_session, "sb-oauth-12", "oauth12@acme.test")
+    client_id = client.post("/clients", json={"name": "Client A"}, headers=headers).json()["id"]
+    monkeypatch.setattr(
+        clients_router.meta_oauth,
+        "exchange_code_for_tokens",
+        lambda code, http_client: MetaTokenResponse(access_token="real-meta-token"),
+    )
+    client.get(f"/clients/meta/oauth/callback?code=auth-code&state={client_id}", follow_redirects=False)
+
+    response = client.put(f"/clients/{client_id}/meta/ad-account", json={"ad_account_id": "act_123"}, headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["meta_ad_account_id"] == "act_123"
+
+    main.app.dependency_overrides.clear()

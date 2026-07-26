@@ -5,6 +5,7 @@ import type {
   BrandVoiceProfile,
   BriefInput,
   Client,
+  ClientAsset,
   ClientDetail,
   ConfigStatus,
   DraftDetail,
@@ -74,10 +75,20 @@ interface RawClient {
   meta_ad_account_id: string | null
   google_connected: boolean
   meta_connected: boolean
+  logo_url: string | null
+}
+
+interface RawClientAsset {
+  id: string
+  kind: 'logo' | 'image'
+  filename: string
+  url: string
+  created_at: string
 }
 
 interface RawClientDetail extends RawClient {
   brand_voice: RawBrandVoice | null
+  assets: RawClientAsset[]
 }
 
 interface RawGuardrailFlag {
@@ -98,6 +109,7 @@ export interface RawPlatformLaunchResult {
   status: 'success' | 'failed'
   external_campaign_id: string | null
   error_message: string | null
+  attempted_at: string
 }
 
 interface RawDraftSummary {
@@ -105,6 +117,8 @@ interface RawDraftSummary {
   brief_id: string
   client_id: string
   client_name: string
+  client_logo_url: string | null
+  platforms: Platform[]
   status: DraftSummary['status']
   business_description: string
   budget_usd: number
@@ -219,6 +233,16 @@ function toBrandVoice(raw: RawBrandVoice): BrandVoiceProfile {
   }
 }
 
+function toClientAsset(raw: RawClientAsset): ClientAsset {
+  return {
+    id: raw.id,
+    kind: raw.kind,
+    filename: raw.filename,
+    url: raw.url,
+    createdAt: raw.created_at,
+  }
+}
+
 function toClient(raw: RawClient): Client {
   return {
     id: raw.id,
@@ -227,6 +251,7 @@ function toClient(raw: RawClient): Client {
     metaAdAccountId: raw.meta_ad_account_id,
     googleConnected: raw.google_connected,
     metaConnected: raw.meta_connected,
+    logoUrl: raw.logo_url,
   }
 }
 
@@ -234,6 +259,7 @@ function toClientDetail(raw: RawClientDetail): ClientDetail {
   return {
     ...toClient(raw),
     brandVoice: raw.brand_voice ? toBrandVoice(raw.brand_voice) : null,
+    assets: raw.assets.map(toClientAsset),
   }
 }
 
@@ -252,6 +278,7 @@ export function toPlatformLaunchResult(raw: RawPlatformLaunchResult): PlatformLa
     status: raw.status,
     externalCampaignId: raw.external_campaign_id,
     errorMessage: raw.error_message,
+    attemptedAt: raw.attempted_at,
   }
 }
 
@@ -261,6 +288,8 @@ function toDraftSummary(raw: RawDraftSummary): DraftSummary {
     briefId: raw.brief_id,
     clientId: raw.client_id,
     clientName: raw.client_name,
+    clientLogoUrl: raw.client_logo_url,
+    platforms: raw.platforms,
     status: raw.status,
     businessDescription: raw.business_description,
     budgetUsd: raw.budget_usd,
@@ -383,6 +412,10 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
       return toClientDetail(await get<RawClientDetail>(`/clients/${clientId}`))
     },
 
+    async deleteClient(clientId: string): Promise<void> {
+      await request('DELETE', `/clients/${clientId}`)
+    },
+
     async setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile> {
       const raw = await put<RawBrandVoice>(`/clients/${clientId}/brand-voice`, {
         tone: brandVoice.tone,
@@ -409,6 +442,36 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
     async getMetaOAuthUrl(clientId: string): Promise<string> {
       const raw = await get<RawOAuthAuthorizeUrl>(`/clients/${clientId}/meta/oauth/start`)
       return raw.authorize_url
+    },
+
+    async setGoogleAdAccount(clientId: string, customerId: string): Promise<Client> {
+      return toClient(await put<RawClient>(`/clients/${clientId}/google/ad-account`, { customer_id: customerId }))
+    },
+
+    async setMetaAdAccount(clientId: string, adAccountId: string): Promise<Client> {
+      return toClient(await put<RawClient>(`/clients/${clientId}/meta/ad-account`, { ad_account_id: adAccountId }))
+    },
+
+    async uploadClientAsset(clientId: string, kind: 'logo' | 'image', file: File): Promise<ClientAsset> {
+      const token = await getAuthToken()
+      const formData = new FormData()
+      formData.append('kind', kind)
+      formData.append('file', file)
+      // No Content-Type header here — the browser sets the multipart boundary itself
+      // when the body is FormData; setting it manually breaks the upload.
+      const response = await fetchFn(`${baseUrl}/clients/${clientId}/assets`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      if (!response.ok) {
+        throw new Error(await response.text())
+      }
+      return toClientAsset((await response.json()) as RawClientAsset)
+    },
+
+    async deleteClientAsset(clientId: string, assetId: string): Promise<void> {
+      await request('DELETE', `/clients/${clientId}/assets/${assetId}`)
     },
 
     async submitBriefsBatch(briefs: BriefInput[]): Promise<DraftSummary[]> {

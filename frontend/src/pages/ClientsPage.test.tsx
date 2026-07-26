@@ -15,6 +15,7 @@ describe('ClientsPage', () => {
           metaAdAccountId: null,
           googleConnected: true,
           metaConnected: false,
+          logoUrl: null,
         },
       ],
     })
@@ -25,10 +26,11 @@ describe('ClientsPage', () => {
     expect(screen.getByText('Not connected')).toBeInTheDocument()
   })
 
-  it('shows an empty state with no clients', async () => {
+  it('shows onboarding guidance with no clients', async () => {
     const apiClient = createFakeApiClient({ listClients: async () => [] })
     renderWithProviders(<ClientsPage />, { apiClient })
 
-    expect(await screen.findByText('No clients yet.')).toBeInTheDocument()
+    expect(await screen.findByText('Add your first client')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: /add client/i }).length).toBeGreaterThan(0)
   })
 })

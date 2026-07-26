@@ -17,9 +17,11 @@ class Settings(BaseSettings):
     google_ads_oauth_redirect_uri: str = "http://localhost:8000/clients/google/oauth/callback"
     meta_app_id: str = ""
     meta_app_secret: str = ""
+    meta_page_id: str = ""  # Facebook Page ID ad creative is posted as — Meta requires this on every ad
     meta_oauth_redirect_uri: str = "http://localhost:8000/clients/meta/oauth/callback"
     redis_url: str = "redis://localhost:6379/0"
     frontend_base_url: str = "http://localhost:5173"
+    uploads_dir: str = "uploads"
     cors_allowed_origins: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     @property

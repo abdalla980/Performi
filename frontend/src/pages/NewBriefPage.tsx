@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiClient } from '../lib/apiClientContext'
 import type { BriefInput, Platform } from '../lib/types'
+import { BudgetCalculator } from '../components/BudgetCalculator'
 import { Alert } from '../components/ui/alert'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -128,7 +129,7 @@ export function NewBriefPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold text-foreground">New brief</h1>
+        <h1 className="font-display text-xl font-semibold text-foreground">New brief</h1>
         <p className="text-sm text-muted-foreground">
           Select one or more clients and describe the campaign for each — submitted together as a batch.
         </p>
@@ -166,7 +167,7 @@ export function NewBriefPage() {
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-2">
-                        <Label htmlFor={`budget-${client.id}`}>Budget (USD)</Label>
+                        <Label htmlFor={`budget-${client.id}`}>Budget (USD/month)</Label>
                         <Input
                           id={`budget-${client.id}`}
                           type="number"
@@ -183,6 +184,10 @@ export function NewBriefPage() {
                         />
                       </div>
                     </div>
+
+                    <BudgetCalculator
+                      onApply={(monthlyBudgetUsd) => updateRow(client.id, 'budgetUsd', String(monthlyBudgetUsd))}
+                    />
 
                     <div className="grid grid-cols-2 gap-3">
                       <div className="flex flex-col gap-2">

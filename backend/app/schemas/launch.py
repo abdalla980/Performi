@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel
@@ -8,6 +9,7 @@ class PlatformLaunchResult(BaseModel):
     status: Literal["success", "failed"]
     external_campaign_id: str | None
     error_message: str | None
+    attempted_at: datetime
 
 
 class LaunchResponse(BaseModel):

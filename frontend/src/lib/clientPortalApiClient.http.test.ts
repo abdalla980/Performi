@@ -80,6 +80,7 @@ describe('createHttpClientPortalApiClient', () => {
           estimated_location_reach: 12000,
         },
         launches: [],
+        agency_contact_email: 'owner@acmeagency.test',
       }),
     )
     const apiClient = makeClient(fetchFn)
@@ -95,6 +96,20 @@ describe('createHttpClientPortalApiClient', () => {
     expect(campaign.projectedMetrics?.estimatedLocationReach).toBe(12000)
     expect(campaign.websiteUrl).toBe('https://acmebakery.test')
     expect(campaign.targetLocation).toBe('Austin, TX')
+    expect(campaign.agencyContactEmail).toBe('owner@acmeagency.test')
+  })
+
+  it('flagLaunchIssue posts to the flag-issue route', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'flagged' }))
+    const apiClient = makeClient(fetchFn)
+
+    const result = await apiClient.flagLaunchIssue('draft-1')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/portal/campaigns/draft-1/flag-issue',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(result).toEqual({ status: 'flagged' })
   })
 
   it('decideCampaign posts the decision', async () => {

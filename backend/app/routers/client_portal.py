@@ -12,6 +12,7 @@ from app.schemas.campaign_ir import CampaignIR
 from app.schemas.client_portal import (
     ClientDecisionRequest,
     ClientDecisionResponse,
+    ClientFlagIssueResponse,
     ClientPortalCampaignDetail,
     ClientPortalCampaignSummary,
 )
@@ -63,9 +64,11 @@ def _detail(db: Session, draft: CampaignDraft) -> ClientPortalCampaignDetail:
                 status=launch.status,
                 external_campaign_id=launch.external_campaign_id,
                 error_message=launch.error_message,
+                attempted_at=launch.attempted_at,
             )
             for launch in launches
         ],
+        agency_contact_email=draft.brief.client.agency.email,
     )
 
 
@@ -120,3 +123,28 @@ def decide_campaign(
         payload={"draft_id": str(draft.id)},
     )
     return ClientDecisionResponse(status=draft.status)
+
+
+@router.post("/campaigns/{draft_id}/flag-issue", response_model=ClientFlagIssueResponse)
+def flag_issue(
+    draft_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    client: Client = Depends(get_current_client),
+) -> ClientFlagIssueResponse:
+    """Lets a client flag a failed launch back to their agency — recorded as an audit
+    event (visible on the agency's Audit Log page), not a direct relaunch trigger.
+    Only the agency can actually retry a launch (see launches.py)."""
+    draft = db.get(CampaignDraft, draft_id)
+    if draft is None or draft.brief.client_id != client.id:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    if draft.status != "failed":
+        raise HTTPException(status_code=409, detail="This campaign hasn't failed to launch")
+
+    record_audit_event(
+        db,
+        agency_id=client.agency_id,
+        client_id=client.id,
+        event_type="client.flagged_launch_issue",
+        payload={"draft_id": str(draft.id)},
+    )
+    return ClientFlagIssueResponse(status="flagged")

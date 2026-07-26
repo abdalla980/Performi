@@ -31,6 +31,7 @@ function baseCampaign(overrides: Partial<ClientPortalCampaignDetail> = {}): Clie
     metaPlan: null,
     projectedMetrics: null,
     launches: [],
+    agencyContactEmail: 'owner@acmeagency.test',
     ...overrides,
   }
 }
@@ -82,5 +83,56 @@ describe('ClientPortalCampaignDetailPage', () => {
 
     await screen.findByText('$16.50/day')
     expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument()
+  })
+
+  it('explains a failed launch without leaking the raw error, and offers ways to reach the agency', async () => {
+    const campaign = baseCampaign({
+      status: 'failed',
+      launches: [
+        {
+          platform: 'google',
+          status: 'failed',
+          externalCampaignId: null,
+          errorMessage: 'GoogleAdsException: INVALID_CUSTOMER_ID at frame 0x7f',
+          attemptedAt: '2026-07-18T00:00:00Z',
+        },
+      ],
+    })
+    const apiClient = createFakeClientPortalApiClient({ getCampaign: async () => campaign })
+
+    renderWithClientPortalProviders(<ClientPortalCampaignDetailPage />, {
+      apiClient,
+      path: '/portal/campaigns/:draftId',
+      initialEntries: ['/portal/campaigns/draft-1'],
+    })
+
+    await screen.findByText(/didn't launch/i)
+    expect(screen.queryByText(/INVALID_CUSTOMER_ID/)).not.toBeInTheDocument()
+
+    const mailLink = screen.getByRole('link', { name: /email your agency/i })
+    expect(mailLink.getAttribute('href')).toContain('mailto:owner@acmeagency.test')
+    expect(screen.getByRole('button', { name: /notify your agency/i })).toBeInTheDocument()
+  })
+
+  it('lets the client notify their agency about a failed launch', async () => {
+    const campaign = baseCampaign({
+      status: 'failed',
+      launches: [
+        { platform: 'meta', status: 'failed', externalCampaignId: null, errorMessage: 'boom', attemptedAt: '2026-07-18T00:00:00Z' },
+      ],
+    })
+    const flagLaunchIssue = vi.fn().mockResolvedValue({ status: 'flagged' })
+    const apiClient = createFakeClientPortalApiClient({ getCampaign: async () => campaign, flagLaunchIssue })
+
+    renderWithClientPortalProviders(<ClientPortalCampaignDetailPage />, {
+      apiClient,
+      path: '/portal/campaigns/:draftId',
+      initialEntries: ['/portal/campaigns/draft-1'],
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: /notify your agency/i }))
+
+    await waitFor(() => expect(flagLaunchIssue).toHaveBeenCalledWith('draft-1'))
+    expect(await screen.findByText(/agency has been notified/i)).toBeInTheDocument()
   })
 })

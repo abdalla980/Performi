@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../lib/authContext'
@@ -11,7 +12,7 @@ function LoadingScreen() {
 }
 
 export function RequireRole({ role }: { role: Role }) {
-  const { session, loading: authLoading, getAuthToken } = useAuth()
+  const { session, loading: authLoading, logout, getAuthToken } = useAuth()
 
   const {
     data: whoAmI,
@@ -22,6 +23,18 @@ export function RequireRole({ role }: { role: Role }) {
     queryFn: async () => fetchWhoAmI({ baseUrl: import.meta.env.VITE_API_BASE_URL, token: await getAuthToken() }),
     enabled: Boolean(session),
   })
+
+  // A whoami failure means the backend has rejected this session's token (expired,
+  // revoked, whatever) — just redirecting to /login isn't enough, since Supabase's
+  // local session object is still sitting there non-null, and LoginPage redirects
+  // straight back to "/" whenever session is truthy. Without actually signing out,
+  // that's an infinite redirect loop between "/" and "/login" (confirmed: this
+  // produced 79 repeated /whoami 401s in one session before this fix).
+  useEffect(() => {
+    if (isError) {
+      logout()
+    }
+  }, [isError, logout])
 
   if (authLoading || (session && whoAmIPending)) {
     return <LoadingScreen />

@@ -84,7 +84,7 @@ def test_get_campaign_detail_includes_plan_and_projected_metrics_but_not_interna
     from app import main
 
     main.app.dependency_overrides[main.get_db] = lambda: db_session
-    _, client_row, headers = _agency_and_client(db_session)
+    agency, client_row, headers = _agency_and_client(db_session)
     draft = _draft(db_session, client_row, status="approved")
 
     response = client.get(f"/portal/campaigns/{draft.id}", headers=headers)
@@ -93,6 +93,7 @@ def test_get_campaign_detail_includes_plan_and_projected_metrics_but_not_interna
     body = response.json()
     assert body["google_plan"]["campaign_name"] == "Austin Bakery"
     assert body["projected_metrics"]["platforms"]
+    assert body["agency_contact_email"] == agency.email
     assert "guardrail" not in body
     assert "competitors" not in body
     assert "excluded_keywords" not in body
@@ -155,6 +156,62 @@ def test_decide_campaign_rejects_when_not_awaiting_approval(client, db_session):
     response = client.post(f"/portal/campaigns/{draft.id}/decision", json={"decision": "approved"}, headers=headers)
 
     assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()
+
+
+def test_flag_issue_records_an_audit_event_for_a_failed_campaign(client, db_session):
+    from app import main
+    from app.models.audit import AuditLog
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    agency, client_row, headers = _agency_and_client(db_session)
+    draft = _draft(db_session, client_row, status="failed")
+
+    response = client.post(f"/portal/campaigns/{draft.id}/flag-issue", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "flagged"
+
+    events = db_session.query(AuditLog).filter_by(event_type="client.flagged_launch_issue").all()
+    assert len(events) == 1
+    assert events[0].agency_id == agency.id
+    assert events[0].client_id == client_row.id
+    assert events[0].payload["draft_id"] == str(draft.id)
+
+    main.app.dependency_overrides.clear()
+
+
+def test_flag_issue_rejects_when_campaign_did_not_fail(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, client_row, headers = _agency_and_client(db_session)
+    draft = _draft(db_session, client_row, status="approved")
+
+    response = client.post(f"/portal/campaigns/{draft.id}/flag-issue", headers=headers)
+
+    assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()
+
+
+def test_flag_issue_404_for_other_clients_campaign(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, client_row, headers = _agency_and_client(db_session)
+    agency2 = Agency(supabase_user_id="sb-agency-portal-4", name="Other", email="other-portal3@acme.test")
+    db_session.add(agency2)
+    db_session.flush()
+    other_client = Client(agency_id=agency2.id, name="Other Client", supabase_user_id="sb-client-4")
+    db_session.add(other_client)
+    db_session.commit()
+    draft = _draft(db_session, other_client, status="failed")
+
+    response = client.post(f"/portal/campaigns/{draft.id}/flag-issue", headers=headers)
+
+    assert response.status_code == 404
 
     main.app.dependency_overrides.clear()
 

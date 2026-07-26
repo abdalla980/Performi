@@ -24,6 +24,27 @@ describe('ClientPortalCampaignsPage', () => {
 
     expect(await screen.findByText('Local bakery campaign')).toBeInTheDocument()
     expect(screen.getByText('Awaiting client approval')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /review/i })).toHaveAttribute('href', '/portal/campaigns/draft-1')
+  })
+
+  it('shows a distinct action for a campaign that failed to launch', async () => {
+    const campaigns: ClientPortalCampaignSummary[] = [
+      {
+        id: 'draft-2',
+        briefId: 'brief-2',
+        status: 'failed',
+        businessDescription: 'A nice musician dude',
+        budgetUsd: 300,
+        goals: 'Leads',
+        createdAt: '2026-07-11T00:00:00Z',
+      },
+    ]
+    const apiClient = createFakeClientPortalApiClient({ listCampaigns: async () => campaigns })
+
+    renderWithClientPortalProviders(<ClientPortalCampaignsPage />, { apiClient })
+
+    await screen.findByText('A nice musician dude')
+    expect(screen.getByRole('link', { name: /see why/i })).toHaveAttribute('href', '/portal/campaigns/draft-2')
   })
 
   it('shows an empty state with no campaigns', async () => {

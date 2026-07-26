@@ -14,6 +14,7 @@ const CLIENTS: Client[] = [
     metaAdAccountId: null,
     googleConnected: false,
     metaConnected: false,
+    logoUrl: null,
   },
 ]
 
@@ -24,6 +25,8 @@ describe('NewBriefPage', () => {
       briefId: 'brief-1',
       clientId: 'client-1',
       clientName: 'Acme Bakery',
+      clientLogoUrl: null,
+      platforms: ['google'],
       status: 'pending_generation',
       businessDescription: 'Local bakery',
       budgetUsd: 500,
@@ -60,7 +63,7 @@ describe('NewBriefPage', () => {
 
     await userEvent.click(await screen.findByLabelText('Include Acme Bakery'))
     await userEvent.type(screen.getByLabelText('Business description'), 'Local bakery')
-    await userEvent.type(screen.getByLabelText('Budget (USD)'), '500')
+    await userEvent.type(screen.getByLabelText('Budget (USD/month)'), '500')
     await userEvent.type(screen.getByLabelText('Goals'), 'Drive traffic')
 
     await userEvent.click(screen.getByRole('button', { name: /generate 1 campaign/i }))
@@ -85,6 +88,8 @@ describe('NewBriefPage', () => {
       briefId: 'brief-2',
       clientId: 'client-1',
       clientName: 'Acme Bakery',
+      clientLogoUrl: null,
+      platforms: ['google'],
       status: 'pending_generation',
       businessDescription: 'Local bakery',
       budgetUsd: 500,
@@ -108,7 +113,7 @@ describe('NewBriefPage', () => {
 
     await userEvent.click(await screen.findByLabelText('Include Acme Bakery'))
     await userEvent.type(screen.getByLabelText('Business description'), 'Local bakery')
-    await userEvent.type(screen.getByLabelText('Budget (USD)'), '500')
+    await userEvent.type(screen.getByLabelText('Budget (USD/month)'), '500')
     await userEvent.type(screen.getByLabelText('Goals'), 'Drive traffic')
     await userEvent.type(screen.getByLabelText('Website / landing page URL'), 'https://acmebakery.test')
     await userEvent.type(screen.getByLabelText('Target location'), 'Austin, TX')

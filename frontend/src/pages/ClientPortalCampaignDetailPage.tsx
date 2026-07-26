@@ -9,6 +9,8 @@ import { Button } from '../components/ui/button'
 import { Card, CardContent } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 
+const PLATFORM_LABEL: Record<'google' | 'meta', string> = { google: 'Google Ads', meta: 'Meta' }
+
 export function ClientPortalCampaignDetailPage() {
   const { draftId = '' } = useParams<{ draftId: string }>()
   const apiClient = useClientPortalApiClient()
@@ -39,6 +41,7 @@ export function ClientPortalCampaignDetailPage() {
     mutationFn: () => apiClient.decideCampaign(draftId, 'rejected'),
     onSuccess: invalidate,
   })
+  const flagIssueMutation = useMutation({ mutationFn: () => apiClient.flagLaunchIssue(draftId) })
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading campaign…</p>
@@ -50,7 +53,7 @@ export function ClientPortalCampaignDetailPage() {
   const mutationError = approveMutation.error ?? rejectMutation.error
 
   const detailRows: Array<{ label: string; value: string; href?: string }> = [
-    { label: 'Budget', value: `$${campaign.budgetUsd.toFixed(0)}` },
+    { label: 'Budget', value: `$${campaign.budgetUsd.toFixed(0)}/mo` },
     { label: 'Goals', value: campaign.goals },
   ]
   if (campaign.websiteUrl) detailRows.push({ label: 'Website', value: campaign.websiteUrl, href: campaign.websiteUrl })
@@ -61,11 +64,50 @@ export function ClientPortalCampaignDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
-        <h1 className="text-xl font-semibold text-foreground">{campaign.businessDescription}</h1>
+        <h1 className="font-display text-xl font-semibold text-foreground">{campaign.businessDescription}</h1>
         <Badge variant={STATUS_BADGE_VARIANT[campaign.status]}>{STATUS_LABELS[campaign.status]}</Badge>
       </div>
 
       {mutationError instanceof Error && <Alert>{mutationError.message}</Alert>}
+
+      {campaign.status === 'failed' && (
+        <Alert className="flex-col items-start gap-3">
+          <div>
+            <p className="font-medium">This campaign didn't launch</p>
+            <p className="mt-1 text-sm">
+              {campaign.launches
+                .filter((launch) => launch.status === 'failed')
+                .map((launch) => PLATFORM_LABEL[launch.platform])
+                .join(' and ')}{' '}
+              ran into a problem going live. Your agency can review and retry it.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              size="default"
+              onClick={() => flagIssueMutation.mutate()}
+              disabled={flagIssueMutation.isPending || flagIssueMutation.isSuccess}
+            >
+              {flagIssueMutation.isPending
+                ? 'Notifying…'
+                : flagIssueMutation.isSuccess
+                  ? 'Notified'
+                  : 'Notify your agency'}
+            </Button>
+            <a
+              href={`mailto:${campaign.agencyContactEmail}?subject=${encodeURIComponent(
+                `Campaign didn't launch: ${campaign.businessDescription}`,
+              )}`}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              Email your agency
+            </a>
+          </div>
+          {flagIssueMutation.isSuccess && (
+            <p className="text-sm">Your agency has been notified and can see this in their audit log.</p>
+          )}
+        </Alert>
+      )}
 
       <Card>
         <CardContent className="flex flex-col gap-4 pt-6 text-sm">

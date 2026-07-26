@@ -13,6 +13,7 @@ venv/
 *.egg-info/
 .pytest_cache/
 dev.db
+backend/uploads/
 
 # Node (frontend/ also has its own nested .gitignore)
 node_modules/

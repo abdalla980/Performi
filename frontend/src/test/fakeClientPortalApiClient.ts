@@ -12,6 +12,7 @@ export function createFakeClientPortalApiClient(overrides: Partial<ClientPortalA
     listCampaigns: notImplemented('listCampaigns'),
     getCampaign: notImplemented('getCampaign'),
     decideCampaign: notImplemented('decideCampaign'),
+    flagLaunchIssue: notImplemented('flagLaunchIssue'),
     ...overrides,
   } as ClientPortalApiClient
 }

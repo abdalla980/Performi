@@ -43,6 +43,8 @@ class DraftSummaryResponse(BaseModel):
     brief_id: uuid.UUID
     client_id: uuid.UUID
     client_name: str
+    client_logo_url: str | None = None
+    platforms: list[str] = []
     status: str
     business_description: str
     budget_usd: float

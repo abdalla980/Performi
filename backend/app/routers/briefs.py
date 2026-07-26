@@ -10,6 +10,7 @@ from app.models.brief import Brief, CampaignDraft
 from app.models.client import Client
 from app.models.guardrail import GuardrailReport
 from app.models.launch import LaunchRecord
+from app.routers.client_assets import client_logo_url
 from app.schemas.brief import (
     BriefBatchCreateRequest,
     BriefCreateRequest,
@@ -38,6 +39,8 @@ def _draft_summary(draft: CampaignDraft, report: GuardrailReport | None) -> Draf
         brief_id=draft.brief_id,
         client_id=draft.brief.client_id,
         client_name=draft.brief.client.name,
+        client_logo_url=client_logo_url(draft.brief.client),
+        platforms=draft.brief.platforms,
         status=draft.status,
         business_description=draft.brief.business_description,
         budget_usd=draft.brief.budget_usd,
@@ -57,7 +60,6 @@ def _draft_detail(db: Session, draft: CampaignDraft) -> DraftDetailResponse:
         target_location=draft.brief.target_location,
         target_audience=draft.brief.target_audience,
         end_date=draft.brief.end_date,
-        platforms=draft.brief.platforms,
         competitors=draft.brief.competitors,
         unique_selling_points=draft.brief.unique_selling_points,
         excluded_keywords=draft.brief.excluded_keywords,
@@ -77,6 +79,7 @@ def _draft_detail(db: Session, draft: CampaignDraft) -> DraftDetailResponse:
                 status=launch.status,
                 external_campaign_id=launch.external_campaign_id,
                 error_message=launch.error_message,
+                attempted_at=launch.attempted_at,
             )
             for launch in launches
         ],

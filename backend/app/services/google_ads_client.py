@@ -26,6 +26,9 @@ class RealGoogleAdsPushClient:
     def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str:
         from google.ads.googleads.client import GoogleAdsClient
 
+        if not plan.final_url:
+            raise ValueError("GoogleCampaignPlan.final_url is required to create a responsive search ad")
+
         settings = get_settings()
         gclient = GoogleAdsClient.load_from_dict(
             {
@@ -38,7 +41,10 @@ class RealGoogleAdsPushClient:
         )
         campaign_budget_service = gclient.get_service("CampaignBudgetService")
         campaign_service = gclient.get_service("CampaignService")
+        campaign_criterion_service = gclient.get_service("CampaignCriterionService")
         ad_group_service = gclient.get_service("AdGroupService")
+        ad_group_criterion_service = gclient.get_service("AdGroupCriterionService")
+        ad_group_ad_service = gclient.get_service("AdGroupAdService")
 
         budget_op = gclient.get_type("CampaignBudgetOperation")
         budget_op.create.name = f"{plan.campaign_name} Budget"
@@ -54,15 +60,59 @@ class RealGoogleAdsPushClient:
         campaign_op.create.campaign_budget = budget_resource
         campaign_op.create.advertising_channel_type = gclient.enums.AdvertisingChannelTypeEnum.SEARCH
         campaign_op.create.status = gclient.enums.CampaignStatusEnum.PAUSED
+        if plan.end_date is not None:
+            campaign_op.create.end_date_time = plan.end_date.strftime("%Y-%m-%d")
         campaign_result = campaign_service.mutate_campaigns(
             customer_id=customer_id, operations=[campaign_op]
         ).results[0]
+
+        if plan.negative_keywords:
+            negative_ops = []
+            for keyword_text in plan.negative_keywords:
+                criterion_op = gclient.get_type("CampaignCriterionOperation")
+                criterion_op.create.campaign = campaign_result.resource_name
+                criterion_op.create.negative = True
+                criterion_op.create.keyword.text = keyword_text
+                criterion_op.create.keyword.match_type = gclient.enums.KeywordMatchTypeEnum.BROAD
+                negative_ops.append(criterion_op)
+            campaign_criterion_service.mutate_campaign_criteria(
+                customer_id=customer_id, operations=negative_ops
+            )
 
         for group in plan.ad_groups:
             group_op = gclient.get_type("AdGroupOperation")
             group_op.create.name = group.name
             group_op.create.campaign = campaign_result.resource_name
-            ad_group_service.mutate_ad_groups(customer_id=customer_id, operations=[group_op])
+            group_resource = (
+                ad_group_service.mutate_ad_groups(customer_id=customer_id, operations=[group_op])
+                .results[0]
+                .resource_name
+            )
+
+            if group.keywords:
+                keyword_ops = []
+                for keyword_text in group.keywords:
+                    criterion_op = gclient.get_type("AdGroupCriterionOperation")
+                    criterion_op.create.ad_group = group_resource
+                    criterion_op.create.keyword.text = keyword_text
+                    criterion_op.create.keyword.match_type = gclient.enums.KeywordMatchTypeEnum.PHRASE
+                    keyword_ops.append(criterion_op)
+                ad_group_criterion_service.mutate_ad_group_criteria(
+                    customer_id=customer_id, operations=keyword_ops
+                )
+
+            ad_op = gclient.get_type("AdGroupAdOperation")
+            ad_op.create.ad_group = group_resource
+            ad_op.create.ad.final_urls.append(plan.final_url)
+            for headline in group.headlines:
+                asset = gclient.get_type("AdTextAsset")
+                asset.text = headline
+                ad_op.create.ad.responsive_search_ad.headlines.append(asset)
+            for description in group.descriptions:
+                asset = gclient.get_type("AdTextAsset")
+                asset.text = description
+                ad_op.create.ad.responsive_search_ad.descriptions.append(asset)
+            ad_group_ad_service.mutate_ad_group_ads(customer_id=customer_id, operations=[ad_op])
 
         return campaign_result.resource_name
 

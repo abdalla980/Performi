@@ -91,6 +91,7 @@ describe('createHttpApiClient', () => {
         google_connected: false,
         meta_connected: false,
         brand_voice: null,
+        assets: [],
       }),
     )
     const apiClient = makeClient(fetchFn)
@@ -98,6 +99,7 @@ describe('createHttpApiClient', () => {
     const client = await apiClient.getClient('client-1')
 
     expect(client.brandVoice).toBeNull()
+    expect(client.assets).toEqual([])
   })
 
   it('getClient maps a present brand voice', async () => {
@@ -117,12 +119,18 @@ describe('createHttpApiClient', () => {
           required_disclaimers: [],
           approved_offers: [],
         },
+        assets: [
+          { id: 'asset-1', kind: 'logo', filename: 'logo.png', url: '/uploads/client-1/abc.png', created_at: '2026-07-18T00:00:00Z' },
+        ],
       }),
     )
     const apiClient = makeClient(fetchFn)
 
     const client = await apiClient.getClient('client-1')
 
+    expect(client.assets).toEqual([
+      { id: 'asset-1', kind: 'logo', filename: 'logo.png', url: '/uploads/client-1/abc.png', createdAt: '2026-07-18T00:00:00Z' },
+    ])
     expect(client.brandVoice).toEqual({
       id: 'bv-1',
       clientId: 'client-1',
@@ -131,6 +139,18 @@ describe('createHttpApiClient', () => {
       requiredDisclaimers: [],
       approvedOffers: [],
     })
+  })
+
+  it('deleteClient DELETEs the client route', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'deleted' }))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.deleteClient('client-1')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
   })
 
   it('setBrandVoice PUTs snake_case fields', async () => {
@@ -204,6 +224,92 @@ describe('createHttpApiClient', () => {
       expect.objectContaining({ method: 'GET' }),
     )
     expect(metaUrl).toBe('https://www.facebook.com/v20.0/dialog/oauth?...')
+  })
+
+  it('setGoogleAdAccount and setMetaAdAccount PUT to the ad-account routes', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'client-1',
+          name: 'Acme Bakery',
+          google_ads_customer_id: '123-456-7890',
+          meta_ad_account_id: null,
+          google_connected: true,
+          meta_connected: false,
+          logo_url: null,
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          id: 'client-1',
+          name: 'Acme Bakery',
+          google_ads_customer_id: null,
+          meta_ad_account_id: 'act_999',
+          google_connected: false,
+          meta_connected: true,
+          logo_url: null,
+        }),
+      )
+    const apiClient = makeClient(fetchFn)
+
+    const googleResult = await apiClient.setGoogleAdAccount('client-1', '123-456-7890')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1/google/ad-account',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ customer_id: '123-456-7890' }) }),
+    )
+    expect(googleResult.googleAdsCustomerId).toBe('123-456-7890')
+
+    const metaResult = await apiClient.setMetaAdAccount('client-1', 'act_999')
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1/meta/ad-account',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ ad_account_id: 'act_999' }) }),
+    )
+    expect(metaResult.metaAdAccountId).toBe('act_999')
+  })
+
+  it('uploadClientAsset posts multipart form data with the auth header, no Content-Type override', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: 'asset-1',
+        kind: 'logo',
+        filename: 'logo.png',
+        url: '/uploads/client-1/abc.png',
+        created_at: '2026-07-18T00:00:00Z',
+      }),
+    )
+    const apiClient = makeClient(fetchFn)
+    const file = new File(['fake-bytes'], 'logo.png', { type: 'image/png' })
+
+    const asset = await apiClient.uploadClientAsset('client-1', 'logo', file)
+
+    expect(fetchFn).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://localhost:8000/clients/client-1/assets')
+    expect(init.method).toBe('POST')
+    expect(init.headers).toEqual({ Authorization: 'Bearer token-123' })
+    expect(init.body).toBeInstanceOf(FormData)
+    expect(init.body.get('kind')).toBe('logo')
+    expect(init.body.get('file')).toBe(file)
+    expect(asset).toEqual({
+      id: 'asset-1',
+      kind: 'logo',
+      filename: 'logo.png',
+      url: '/uploads/client-1/abc.png',
+      createdAt: '2026-07-18T00:00:00Z',
+    })
+  })
+
+  it('deleteClientAsset DELETEs the asset route', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'deleted' }))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.deleteClientAsset('client-1', 'asset-1')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1/assets/asset-1',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
   })
 
   it('submitBriefsBatch posts an array of snake_case briefs and maps the drafts', async () => {

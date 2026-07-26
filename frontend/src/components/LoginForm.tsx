@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Alert } from './ui/alert'
+import { PerformiLogo } from './PerformiLogo'
 
 interface LoginFormProps {
   onLogin: (email: string, password: string) => Promise<void>
@@ -30,7 +31,8 @@ export function LoginForm({ onLogin }: LoginFormProps) {
 
   return (
     <Card className="w-full max-w-sm">
-      <CardHeader>
+      <CardHeader className="items-center text-center">
+        <PerformiLogo className="mb-2" />
         <CardTitle>Welcome back</CardTitle>
         <CardDescription>Log in to your agency account.</CardDescription>
       </CardHeader>

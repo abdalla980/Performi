@@ -12,6 +12,7 @@ function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
     briefId: 'brief-1',
     clientId: 'client-1',
     clientName: 'Acme Bakery',
+    clientLogoUrl: null,
     status: 'adapted',
     businessDescription: 'Bakery',
     budgetUsd: 500,
@@ -84,7 +85,9 @@ describe('DraftDetailPage', () => {
       status: 'launched',
       externalCampaignId: 'g-1',
       errorMessage: null,
-      platforms: [{ platform: 'google', status: 'success', externalCampaignId: 'g-1', errorMessage: null }],
+      platforms: [
+        { platform: 'google', status: 'success', externalCampaignId: 'g-1', errorMessage: null, attemptedAt: '2026-07-18T00:00:00Z' },
+      ],
     }
     const launchDraft = vi.fn().mockResolvedValue(launch)
     const apiClient = createFakeApiClient({ getBrief: async () => draft, launchDraft })
@@ -97,6 +100,94 @@ describe('DraftDetailPage', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: /^launch$/i }))
     await waitFor(() => expect(launchDraft).toHaveBeenCalledWith('draft-1'))
+  })
+
+  it('offers a retry once a launch has failed', async () => {
+    const draft = baseDraft({
+      status: 'failed',
+      launches: [
+        {
+          platform: 'google',
+          status: 'failed',
+          externalCampaignId: null,
+          errorMessage: 'quota exceeded',
+          attemptedAt: '2026-07-18T00:00:00Z',
+        },
+      ],
+    })
+    const launch: LaunchResponse = {
+      status: 'launched',
+      externalCampaignId: 'g-2',
+      errorMessage: null,
+      platforms: [
+        { platform: 'google', status: 'success', externalCampaignId: 'g-2', errorMessage: null, attemptedAt: '2026-07-18T00:00:00Z' },
+      ],
+    }
+    const launchDraft = vi.fn().mockResolvedValue(launch)
+    const apiClient = createFakeApiClient({ getBrief: async () => draft, launchDraft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await userEvent.click(await screen.findByRole('button', { name: /retry launch/i }))
+    await waitFor(() => expect(launchDraft).toHaveBeenCalledWith('draft-1'))
+  })
+
+  it('labels a demo-mode launch as simulated instead of linking to the real platform', async () => {
+    const draft = baseDraft({
+      status: 'launched',
+      launches: [
+        {
+          platform: 'google',
+          status: 'success',
+          externalCampaignId: 'demo-google-demo-05cc4121',
+          errorMessage: null,
+          attemptedAt: '2026-07-18T12:00:00Z',
+        },
+      ],
+    })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    expect(screen.getAllByText(/simulated/i).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('link', { name: /view in google ads/i })).not.toBeInTheDocument()
+  })
+
+  it('links to the real platform for a genuine launch', async () => {
+    const draft = baseDraft({
+      status: 'launched',
+      launches: [
+        {
+          platform: 'google',
+          status: 'success',
+          externalCampaignId: 'customers/123/campaigns/456',
+          errorMessage: null,
+          attemptedAt: '2026-07-18T12:00:00Z',
+        },
+      ],
+    })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    const link = screen.getByRole('link', { name: /view in google ads/i })
+    expect(link).toHaveAttribute('href', 'https://ads.google.com/aw/overview')
+    expect(link).toHaveAttribute('target', '_blank')
+    expect(screen.queryByText(/simulated/i)).not.toBeInTheDocument()
   })
 
   it('disables approve when the guardrail report has blocking flags', async () => {

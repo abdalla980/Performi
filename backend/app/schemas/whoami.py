@@ -8,3 +8,4 @@ class WhoAmIResponse(BaseModel):
     role: Literal["agency", "client"]
     id: uuid.UUID
     name: str
+    agency_name: str | None = None

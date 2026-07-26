@@ -53,6 +53,10 @@ def _draft(
     return draft, headers
 
 
+def _without_timestamps(platforms: list[dict]) -> list[dict]:
+    return [{k: v for k, v in platform.items() if k != "attempted_at"} for platform in platforms]
+
+
 def test_launch_pushes_to_google_and_records_success(client, db_session, monkeypatch):
     from app import main
     from app.routers import launches
@@ -71,9 +75,10 @@ def test_launch_pushes_to_google_and_records_success(client, db_session, monkeyp
     body = response.json()
     assert body["status"] == "launched"
     assert body["external_campaign_id"] == "google-camp-1"
-    assert body["platforms"] == [
+    assert _without_timestamps(body["platforms"]) == [
         {"platform": "google", "status": "success", "external_campaign_id": "google-camp-1", "error_message": None}
     ]
+    assert body["platforms"][0]["attempted_at"]
 
     main.app.dependency_overrides.clear()
 
@@ -150,7 +155,7 @@ def test_launch_uses_demo_push_for_demo_connected_google_client(client, db_sessi
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "launched"
-    assert body["platforms"] == [
+    assert _without_timestamps(body["platforms"]) == [
         {"platform": "google", "status": "success", "external_campaign_id": "demo-google-demo-fake0001", "error_message": None}
     ]
 
@@ -172,9 +177,32 @@ def test_launch_uses_demo_push_for_demo_connected_meta_client(client, db_session
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "launched"
-    assert body["platforms"] == [
+    assert _without_timestamps(body["platforms"]) == [
         {"platform": "meta", "status": "success", "external_campaign_id": "demo-meta-demo-fake0001", "error_message": None}
     ]
+
+    main.app.dependency_overrides.clear()
+
+
+def test_launch_can_be_retried_after_a_previous_failure(client, db_session, monkeypatch):
+    """A campaign stuck at status=failed had no way back into the app before this —
+    /launch only ever accepted client_approved. Retrying should be allowed from
+    failed too, not just the original pre-launch state."""
+    from app import main
+    from app.routers import launches
+    from app.services.google_ads_client import FakeGoogleAdsPushClient
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr("app.services.campaign_push.decrypt_token", lambda blob: "decrypted-token")
+    monkeypatch.setattr(
+        launches, "get_google_ads_push_client", lambda: FakeGoogleAdsPushClient(external_id="google-camp-retry")
+    )
+    draft, headers = _draft(db_session, status="failed")
+
+    response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "launched"
 
     main.app.dependency_overrides.clear()
 

@@ -86,3 +86,17 @@ def test_semantic_check_parses_llm_flags():
     assert len(flags) == 1
     assert flags[0].code == "off_brand_tone"
     assert flags[0].severity == "warn"
+
+
+def test_semantic_check_strips_markdown_json_fence():
+    fenced_response = (
+        "```json\n"
+        + json.dumps({"flags": [{"severity": "warn", "code": "off_brand_tone", "message": "Too casual."}]})
+        + "\n```"
+    )
+    fake_client = FakeAnthropicClient(fenced_response)
+
+    flags = run_semantic_check(_ir(), brand_voice=None, anthropic_client=fake_client)
+
+    assert len(flags) == 1
+    assert flags[0].code == "off_brand_tone"

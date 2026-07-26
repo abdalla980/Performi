@@ -4,6 +4,7 @@ from app.config import get_settings
 from app.models.brand_voice import BrandVoiceProfile
 from app.schemas.campaign_ir import CampaignIR
 from app.schemas.guardrail import GuardrailFlag
+from app.services.llm_generation import strip_markdown_json_fence
 
 _MIN_DAILY_BUDGET_USD = 1.0
 _MAX_DAILY_BUDGET_USD = 10_000.0
@@ -75,5 +76,8 @@ def run_semantic_check(
         system=_SEMANTIC_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    parsed = json.loads(response.content[0].text)
+    # See llm_generation.py's generate_campaign_ir for why content[0] isn't safe to
+    # assume is text (extended-thinking responses put a ThinkingBlock first).
+    raw_text = next(block.text for block in response.content if hasattr(block, "text"))
+    parsed = json.loads(strip_markdown_json_fence(raw_text))
     return [GuardrailFlag.model_validate(f) for f in parsed["flags"]]

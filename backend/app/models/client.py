@@ -27,3 +27,4 @@ class Client(Base):
     brand_voice_profile: Mapped["BrandVoiceProfile"] = relationship(
         back_populates="client", uselist=False
     )
+    assets: Mapped[list["ClientAsset"]] = relationship(back_populates="client", order_by="ClientAsset.created_at")

@@ -13,10 +13,18 @@ from app.models.agency import Agency
 from app.models.brand_voice import BrandVoiceProfile
 from app.models.client import Client
 from app.schemas.brand_voice import BrandVoiceProfileRequest, BrandVoiceProfileResponse
-from app.schemas.client import ClientCreateRequest, ClientDetailResponse, ClientResponse
+from app.routers.client_assets import client_logo_url, to_client_asset_response
+from app.schemas.client import (
+    ClientCreateRequest,
+    ClientDetailResponse,
+    ClientGoogleAdAccountRequest,
+    ClientMetaAdAccountRequest,
+    ClientResponse,
+)
 from app.schemas.oauth import OAuthAuthorizeUrlResponse
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
+from app.services.client_deletion import delete_client_cascade
 from app.services.google_oauth import build_authorize_url, exchange_code_for_tokens
 from app.services import meta_oauth
 
@@ -38,6 +46,7 @@ def _client_response(client: Client) -> ClientResponse:
         meta_ad_account_id=client.meta_ad_account_id,
         google_connected=client.google_refresh_token_encrypted is not None,
         meta_connected=client.meta_access_token_encrypted is not None,
+        logo_url=client_logo_url(client),
     )
 
 
@@ -75,7 +84,24 @@ def get_client_detail(
         brand_voice=BrandVoiceProfileResponse.model_validate(client.brand_voice_profile)
         if client.brand_voice_profile
         else None,
+        assets=[to_client_asset_response(asset) for asset in client.assets],
     )
+
+
+@router.delete("/{client_id}")
+def delete_client(
+    client_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    agency: Agency = Depends(get_current_agency),
+) -> dict[str, str]:
+    client = _get_owned_client(db, client_id, agency)
+    client_name = client.name
+    delete_client_cascade(db, client)
+
+    record_audit_event(
+        db, agency_id=agency.id, client_id=None, event_type="client.deleted", payload={"client_name": client_name}
+    )
+    return {"status": "deleted"}
 
 
 @router.put("/{client_id}/brand-voice", response_model=BrandVoiceProfileResponse)
@@ -187,6 +213,44 @@ def meta_oauth_callback(
         payload={},
     )
     return RedirectResponse(f"{settings.frontend_base_url}/clients/{client.id}?connected=meta")
+
+
+@router.put("/{client_id}/google/ad-account", response_model=ClientResponse)
+def set_google_ad_account(
+    client_id: uuid.UUID,
+    body: ClientGoogleAdAccountRequest,
+    db: Session = Depends(get_db),
+    agency: Agency = Depends(get_current_agency),
+) -> ClientResponse:
+    """The real OAuth callback only stores a refresh token — it has no way to know
+    which Google Ads customer ID the agency wants to push to (a Google account can
+    have access to many), so that has to be set explicitly, once a real connect has
+    already happened."""
+    client = _get_owned_client(db, client_id, agency)
+    if client.google_refresh_token_encrypted is None:
+        raise HTTPException(status_code=409, detail="Connect Google Ads before setting a customer ID")
+    client.google_ads_customer_id = body.customer_id
+    db.commit()
+    db.refresh(client)
+    return _client_response(client)
+
+
+@router.put("/{client_id}/meta/ad-account", response_model=ClientResponse)
+def set_meta_ad_account(
+    client_id: uuid.UUID,
+    body: ClientMetaAdAccountRequest,
+    db: Session = Depends(get_db),
+    agency: Agency = Depends(get_current_agency),
+) -> ClientResponse:
+    """See set_google_ad_account — same reasoning, the real Meta OAuth callback only
+    stores an access token, never which ad account to push to."""
+    client = _get_owned_client(db, client_id, agency)
+    if client.meta_access_token_encrypted is None:
+        raise HTTPException(status_code=409, detail="Connect Meta before setting an ad account ID")
+    client.meta_ad_account_id = body.ad_account_id
+    db.commit()
+    db.refresh(client)
+    return _client_response(client)
 
 
 @router.post("/{client_id}/google/demo-connect")

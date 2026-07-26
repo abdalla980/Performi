@@ -30,6 +30,7 @@ class ClientPortalCampaignDetail(ClientPortalCampaignSummary):
     meta_plan: MetaCampaignPlan | None = None
     projected_metrics: ProjectedMetrics | None = None
     launches: list[PlatformLaunchResult] = []
+    agency_contact_email: str
 
 
 class ClientDecisionRequest(BaseModel):
@@ -37,4 +38,8 @@ class ClientDecisionRequest(BaseModel):
 
 
 class ClientDecisionResponse(BaseModel):
+    status: str
+
+
+class ClientFlagIssueResponse(BaseModel):
     status: str

@@ -1,15 +1,17 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { AlertTriangle, ClipboardList, ListChecks, LogOut, Users } from 'lucide-react'
+import { AlertTriangle, ClipboardList, ListChecks, LogOut, Settings, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../lib/authContext'
 import { useApiClient } from '../lib/apiClientContext'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
+import { PerformiLogo } from './PerformiLogo'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Campaigns', icon: ListChecks, end: true },
   { to: '/clients', label: 'Clients', icon: Users, end: false },
   { to: '/audit', label: 'Audit Log', icon: ClipboardList, end: false },
+  { to: '/settings', label: 'Settings', icon: Settings, end: false },
 ]
 
 export function AppShell() {
@@ -26,9 +28,9 @@ export function AppShell() {
 
   return (
     <div className="flex min-h-svh bg-background">
-      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card">
+      <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-surface">
         <div className="px-5 py-5">
-          <span className="text-lg font-semibold tracking-tight text-foreground">Performy</span>
+          <PerformiLogo />
         </div>
         <nav className="flex flex-1 flex-col gap-1 px-3">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
@@ -41,7 +43,7 @@ export function AppShell() {
                   'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                   isActive
                     ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                    : 'text-muted-foreground hover:bg-card hover:text-foreground',
                 )
               }
             >
@@ -60,8 +62,8 @@ export function AppShell() {
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         {demoModeActive && (
-          <div className="flex items-center gap-2 border-b border-border bg-muted px-6 py-2 text-sm text-muted-foreground">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
+          <div className="flex items-center gap-2 border-b border-accent/30 bg-accent-soft px-6 py-2 text-sm text-foreground">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-accent" />
             Demo mode: some integrations aren't configured yet, so those steps use simulated data.
           </div>
         )}

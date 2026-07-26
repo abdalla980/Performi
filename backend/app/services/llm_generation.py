@@ -38,6 +38,19 @@ def _build_prompt(brief: Brief, brand_voice: BrandVoiceProfile | None) -> str:
     )
 
 
+def strip_markdown_json_fence(text: str) -> str:
+    """Claude sometimes wraps JSON output in a ```json ... ``` fence despite being
+    told to return JSON only — strip it so json.loads/model_validate_json don't choke."""
+    text = text.strip()
+    if text.startswith("```"):
+        first_newline = text.find("\n")
+        text = text[first_newline + 1 :] if first_newline != -1 else text
+    text = text.strip()
+    if text.endswith("```"):
+        text = text[:-3]
+    return text.strip()
+
+
 def generate_campaign_ir(
     brief: Brief, anthropic_client, brand_voice: BrandVoiceProfile | None = None
 ) -> CampaignIR:
@@ -49,8 +62,11 @@ def generate_campaign_ir(
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )
-    raw_text = response.content[0].text
-    ir = CampaignIR.model_validate_json(raw_text)
+    # Extended-thinking-enabled responses put a ThinkingBlock (no .text attribute)
+    # ahead of the actual text block in response.content — skip past it rather than
+    # assuming content[0] is always text.
+    raw_text = next(block.text for block in response.content if hasattr(block, "text"))
+    ir = CampaignIR.model_validate_json(strip_markdown_json_fence(raw_text))
 
     # Facts, not creative content — trust the brief over whatever the model produced.
     if brief.end_date is not None:

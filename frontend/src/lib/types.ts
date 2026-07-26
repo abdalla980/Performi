@@ -53,10 +53,20 @@ export interface Client {
   metaAdAccountId: string | null
   googleConnected: boolean
   metaConnected: boolean
+  logoUrl: string | null
+}
+
+export interface ClientAsset {
+  id: string
+  kind: 'logo' | 'image'
+  filename: string
+  url: string
+  createdAt: string
 }
 
 export interface ClientDetail extends Client {
   brandVoice: BrandVoiceProfile | null
+  assets: ClientAsset[]
 }
 
 export type Platform = 'google' | 'meta'
@@ -92,6 +102,8 @@ export interface DraftSummary {
   briefId: string
   clientId: string
   clientName: string
+  clientLogoUrl: string | null
+  platforms: Platform[]
   status: CampaignDraftStatus
   businessDescription: string
   budgetUsd: number
@@ -119,6 +131,7 @@ export interface PlatformLaunchResult {
   status: 'success' | 'failed'
   externalCampaignId: string | null
   errorMessage: string | null
+  attemptedAt: string
 }
 
 export interface PlatformProjection {
@@ -185,11 +198,16 @@ export interface ApiClient {
   listClients(): Promise<Client[]>
   createClient(name: string): Promise<Client>
   getClient(clientId: string): Promise<ClientDetail>
+  deleteClient(clientId: string): Promise<void>
   setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile>
   connectGoogleDemo(clientId: string): Promise<void>
   connectMetaDemo(clientId: string): Promise<void>
   getGoogleOAuthUrl(clientId: string): Promise<string>
   getMetaOAuthUrl(clientId: string): Promise<string>
+  setGoogleAdAccount(clientId: string, customerId: string): Promise<Client>
+  setMetaAdAccount(clientId: string, adAccountId: string): Promise<Client>
+  uploadClientAsset(clientId: string, kind: 'logo' | 'image', file: File): Promise<ClientAsset>
+  deleteClientAsset(clientId: string, assetId: string): Promise<void>
 
   submitBriefsBatch(briefs: BriefInput[]): Promise<DraftSummary[]>
   listBriefs(clientId?: string): Promise<DraftSummary[]>
@@ -209,6 +227,8 @@ export interface WhoAmI {
   role: Role
   id: string
   name: string
+  /** Set only for role: 'client' — the agency that manages this client, for white-labeling the client portal. */
+  agencyName: string | null
 }
 
 export interface ClientPortalCampaignSummary {
@@ -231,10 +251,12 @@ export interface ClientPortalCampaignDetail extends ClientPortalCampaignSummary 
   metaPlan: MetaCampaignPlan | null
   projectedMetrics: ProjectedMetrics | null
   launches: PlatformLaunchResult[]
+  agencyContactEmail: string
 }
 
 export interface ClientPortalApiClient {
   listCampaigns(): Promise<ClientPortalCampaignSummary[]>
   getCampaign(draftId: string): Promise<ClientPortalCampaignDetail>
   decideCampaign(draftId: string, decision: 'approved' | 'rejected'): Promise<{ status: string }>
+  flagLaunchIssue(draftId: string): Promise<{ status: string }>
 }

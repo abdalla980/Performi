@@ -1,6 +1,7 @@
 from app.models.agency import Agency
 from app.models.client import Client
 from app.models.brand_voice import BrandVoiceProfile
+from app.models.client_asset import ClientAsset
 from app.models.audit import AuditLog
 from app.models.brief import Brief, CampaignDraft
 from app.models.guardrail import GuardrailReport
@@ -11,6 +12,7 @@ __all__ = [
     "Agency",
     "Client",
     "BrandVoiceProfile",
+    "ClientAsset",
     "AuditLog",
     "Brief",
     "CampaignDraft",

@@ -36,6 +36,7 @@ interface RawCampaignDetail extends RawCampaignSummary {
   meta_plan: RawMetaPlan | null
   projected_metrics: RawProjectedMetrics | null
   launches: RawPlatformLaunchResult[]
+  agency_contact_email: string
 }
 
 function toCampaignSummary(raw: RawCampaignSummary): ClientPortalCampaignSummary {
@@ -62,6 +63,7 @@ function toCampaignDetail(raw: RawCampaignDetail): ClientPortalCampaignDetail {
     metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
     projectedMetrics: raw.projected_metrics ? toProjectedMetrics(raw.projected_metrics) : null,
     launches: raw.launches.map(toPlatformLaunchResult),
+    agencyContactEmail: raw.agency_contact_email,
   }
 }
 
@@ -95,6 +97,10 @@ export function createHttpClientPortalApiClient({
 
     async decideCampaign(draftId: string, decision: 'approved' | 'rejected'): Promise<{ status: string }> {
       return request('POST', `/portal/campaigns/${draftId}/decision`, { decision })
+    },
+
+    async flagLaunchIssue(draftId: string): Promise<{ status: string }> {
+      return request('POST', `/portal/campaigns/${draftId}/flag-issue`)
     },
   }
 }

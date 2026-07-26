@@ -12,6 +12,7 @@ import { DraftDetailPage } from './pages/DraftDetailPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewBriefPage } from './pages/NewBriefPage'
 import { NewClientPage } from './pages/NewClientPage'
+import { SettingsPage } from './pages/SettingsPage'
 
 export function AppRoutes() {
   return (
@@ -27,6 +28,7 @@ export function AppRoutes() {
           <Route path="clients/new" element={<NewClientPage />} />
           <Route path="clients/:clientId" element={<ClientDetailPage />} />
           <Route path="audit" element={<AuditLogPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

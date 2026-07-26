@@ -26,7 +26,9 @@ def whoami(
 
     client_row = db.scalar(select(Client).where(Client.supabase_user_id == supabase_user_id))
     if client_row is not None:
-        return WhoAmIResponse(role="client", id=client_row.id, name=client_row.name)
+        return WhoAmIResponse(
+            role="client", id=client_row.id, name=client_row.name, agency_name=client_row.agency.name
+        )
 
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED, detail="No agency or client linked to this Supabase account"

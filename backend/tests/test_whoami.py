@@ -19,6 +19,7 @@ def test_whoami_returns_agency_role_for_agency_token(client, db_session):
     body = response.json()
     assert body["role"] == "agency"
     assert body["name"] == "Acme Agency"
+    assert body["agency_name"] is None
 
     main.app.dependency_overrides.clear()
 
@@ -42,6 +43,7 @@ def test_whoami_returns_client_role_for_client_token(client, db_session):
     body = response.json()
     assert body["role"] == "client"
     assert body["name"] == "Acme Bakery"
+    assert body["agency_name"] == "Acme Agency"
 
     main.app.dependency_overrides.clear()
 

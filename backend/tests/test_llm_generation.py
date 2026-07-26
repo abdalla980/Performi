@@ -127,6 +127,36 @@ def test_generate_campaign_ir_includes_new_brief_details_in_prompt():
     assert "cheap" in prompt
 
 
+def test_generate_campaign_ir_strips_markdown_json_fence():
+    brief = Brief(
+        client_id=None,
+        business_description="Local bakery in Austin",
+        budget_usd=500,
+        goals="Drive foot traffic",
+    )
+    fenced_response = (
+        "```json\n"
+        + json.dumps(
+            {
+                "campaign_name": "Austin Bakery Foot Traffic",
+                "objective": "traffic",
+                "daily_budget_usd": 16.5,
+                "end_date": None,
+                "keywords": ["bakery near me"],
+                "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
+                "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
+                "call_to_action": "Visit Us Today",
+            }
+        )
+        + "\n```"
+    )
+    fake_client = FakeAnthropicClient(fenced_response)
+
+    ir = generate_campaign_ir(brief, anthropic_client=fake_client)
+
+    assert ir.campaign_name == "Austin Bakery Foot Traffic"
+
+
 def test_generate_campaign_ir_overrides_facts_from_brief():
     from datetime import date
 
