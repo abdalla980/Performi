@@ -687,6 +687,34 @@ describe('createHttpApiClient', () => {
     })
   })
 
+  it('listNotifications maps snake_case fields to camelCase', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse([
+        { draft_id: 'draft-1', client_name: 'Acme Bakery', kind: 'pending_approval_stale', days_stale: 32 },
+      ]),
+    )
+    const apiClient = makeClient(fetchFn)
+
+    const notifications = await apiClient.listNotifications()
+
+    expect(fetchFn).toHaveBeenCalledWith('http://localhost:8000/notifications', expect.objectContaining({ method: 'GET' }))
+    expect(notifications).toEqual([
+      { draftId: 'draft-1', clientName: 'Acme Bakery', kind: 'pending_approval_stale', daysStale: 32 },
+    ])
+  })
+
+  it('getImpactStats maps snake_case fields to camelCase', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({ campaigns_launched: 12, estimated_hours_saved: 6.5, guardrail_issues_caught: 3 }),
+    )
+    const apiClient = makeClient(fetchFn)
+
+    const stats = await apiClient.getImpactStats()
+
+    expect(fetchFn).toHaveBeenCalledWith('http://localhost:8000/stats/impact', expect.objectContaining({ method: 'GET' }))
+    expect(stats).toEqual({ campaignsLaunched: 12, estimatedHoursSaved: 6.5, guardrailIssuesCaught: 3 })
+  })
+
   it('throws with the response body text when the backend returns an error status', async () => {
     const fetchFn = vi.fn().mockResolvedValue(new Response('Client not found', { status: 404 }))
     const apiClient = makeClient(fetchFn)

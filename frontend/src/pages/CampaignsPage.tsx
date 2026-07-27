@@ -29,6 +29,8 @@ const STATUS_FILTERS: Array<{ value: CampaignDraftStatus | 'all'; label: string 
   })),
 ]
 
+const REBRIEF_ELIGIBLE_DAYS = 30
+
 export function CampaignsPage() {
   const apiClient = useApiClient()
   const navigate = useNavigate()
@@ -62,8 +64,6 @@ export function CampaignsPage() {
       launched: all.filter((d) => d.status === 'launched').length,
     }
   }, [drafts, clients])
-
-  const REBRIEF_ELIGIBLE_DAYS = 30
 
   const rebriefCandidates = useMemo(() => {
     if (!drafts) return []
