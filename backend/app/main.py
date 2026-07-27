@@ -20,6 +20,7 @@ from app.routers import (
     launches,
     me,
     notifications,
+    stats,
     whoami,
 )
 
@@ -53,6 +54,7 @@ app.include_router(guardrails.router)
 app.include_router(approvals.router)
 app.include_router(launches.router)
 app.include_router(notifications.router)
+app.include_router(stats.router)
 app.include_router(audit.router)
 app.include_router(client_portal.router)
 
