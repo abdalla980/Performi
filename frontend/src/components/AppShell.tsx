@@ -6,6 +6,7 @@ import { useApiClient } from '../lib/apiClientContext'
 import { cn } from '../lib/utils'
 import { Button } from './ui/button'
 import { PerformiLogo } from './PerformiLogo'
+import { NotificationsMenu } from './NotificationsMenu'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Campaigns', icon: ListChecks, end: true },
@@ -61,6 +62,9 @@ export function AppShell() {
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center justify-end border-b border-border px-6 py-3">
+          <NotificationsMenu />
+        </div>
         {demoModeActive && (
           <div className="flex items-center gap-2 border-b border-accent/30 bg-accent-soft px-6 py-2 text-sm text-foreground">
             <AlertTriangle className="h-4 w-4 shrink-0 text-accent" />

@@ -31,6 +31,7 @@ export function createFakeApiClient(overrides: Partial<ApiClient> = {}): ApiClie
     approveDraft: notImplemented('approveDraft'),
     rejectDraft: notImplemented('rejectDraft'),
     launchDraft: notImplemented('launchDraft'),
+    listNotifications: notImplemented('listNotifications'),
     listAuditLog: notImplemented('listAuditLog'),
     ...overrides,
   } as ApiClient

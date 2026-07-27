@@ -192,6 +192,15 @@ export interface GenerateResult {
   metaPlan: MetaCampaignPlan | null
 }
 
+export type NotificationKind = 'pending_approval_stale' | 'client_pending_stale' | 'guardrail_blocked' | 'launch_failed'
+
+export interface Notification {
+  draftId: string
+  clientName: string
+  kind: NotificationKind
+  daysStale: number
+}
+
 export interface ApiClient {
   getConfigStatus(): Promise<ConfigStatus>
 
@@ -217,6 +226,8 @@ export interface ApiClient {
   approveDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
   rejectDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
   launchDraft(draftId: string): Promise<LaunchResponse>
+
+  listNotifications(): Promise<Notification[]>
 
   listAuditLog(limit?: number): Promise<AuditLogEntry[]>
 }

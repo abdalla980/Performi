@@ -15,6 +15,7 @@ import type {
   GuardrailReport,
   LaunchResponse,
   MetaCampaignPlan,
+  Notification,
   Platform,
   PlatformLaunchResult,
   PlatformProjection,
@@ -188,6 +189,13 @@ interface RawGenerateResult {
   mode: 'live' | 'demo'
   google_plan: RawGooglePlan | null
   meta_plan: RawMetaPlan | null
+}
+
+interface RawNotification {
+  draft_id: string
+  client_name: string
+  kind: Notification['kind']
+  days_stale: number
 }
 
 export function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
@@ -373,6 +381,10 @@ function toGenerateResult(raw: RawGenerateResult): GenerateResult {
   }
 }
 
+function toNotification(raw: RawNotification): Notification {
+  return { draftId: raw.draft_id, clientName: raw.client_name, kind: raw.kind, daysStale: raw.days_stale }
+}
+
 export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: HttpApiClientOptions): ApiClient {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = await getAuthToken()
@@ -522,6 +534,11 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
 
     async launchDraft(draftId: string): Promise<LaunchResponse> {
       return toLaunchResponse(await post<RawLaunchResponse>(`/briefs/${draftId}/launch`))
+    },
+
+    async listNotifications(): Promise<Notification[]> {
+      const raw = await get<RawNotification[]>('/notifications')
+      return raw.map(toNotification)
     },
 
     async listAuditLog(limit = 100): Promise<AuditLogEntry[]> {
