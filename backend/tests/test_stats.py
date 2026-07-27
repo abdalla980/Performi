@@ -86,7 +86,16 @@ def test_scopes_to_the_requesting_agency(client, db_session):
     other_brief = Brief(client_id=other_client.id, business_description="X", budget_usd=100, goals="Y")
     db_session.add(other_brief)
     db_session.flush()
-    db_session.add(CampaignDraft(brief_id=other_brief.id, status="launched"))
+    other_draft = CampaignDraft(brief_id=other_brief.id, status="launched")
+    db_session.add(other_draft)
+    db_session.flush()
+    db_session.add(
+        GuardrailReport(
+            campaign_draft_id=other_draft.id,
+            flags_json=[{"severity": "block", "code": "x", "message": "m1"}, {"severity": "warn", "code": "y", "message": "m2"}],
+            has_blocking_flags=True,
+        )
+    )
     db_session.commit()
 
     response = client.get("/stats/impact", headers=headers)
