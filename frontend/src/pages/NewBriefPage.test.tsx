@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { NewBriefPage } from './NewBriefPage'
 import { createFakeApiClient } from '../test/fakeApiClient'
 import { renderWithProviders } from '../test/renderWithProviders'
-import type { Client, DraftSummary, GenerateResult } from '../lib/types'
+import type { Client, DraftDetail, DraftSummary, GenerateResult } from '../lib/types'
 
 const CLIENTS: Client[] = [
   {
@@ -152,5 +152,46 @@ describe('NewBriefPage', () => {
 
     await screen.findByLabelText('Include Acme Bakery')
     expect(screen.queryByLabelText('Business description')).not.toBeInTheDocument()
+  })
+
+  it('prefills a client row from an existing draft when duplicating for a refresh', async () => {
+    const source: DraftDetail = {
+      id: 'draft-1',
+      briefId: 'brief-1',
+      clientId: 'client-1',
+      clientName: 'Acme Bakery',
+      clientLogoUrl: null,
+      platforms: ['google'],
+      status: 'launched',
+      businessDescription: 'Local bakery',
+      budgetUsd: 500,
+      goals: 'Drive traffic',
+      guardrailFlagCount: 0,
+      hasBlockingFlags: false,
+      createdAt: '2026-05-01T00:00:00Z',
+      websiteUrl: 'https://acme.test',
+      targetLocation: 'Austin, TX',
+      targetAudience: 'Homeowners',
+      endDate: '2026-06-01',
+      competitors: 'Big Bakery Co',
+      uniqueSellingPoints: 'Fresh daily',
+      excludedKeywords: ['free'],
+      googlePlan: null,
+      metaPlan: null,
+      guardrail: null,
+      launches: [],
+      projectedMetrics: null,
+    }
+    const apiClient = createFakeApiClient({ listClients: async () => CLIENTS, getBrief: async () => source })
+
+    renderWithProviders(<NewBriefPage />, {
+      apiClient,
+      path: '/campaigns/new',
+      initialEntries: ['/campaigns/new?duplicateFrom=draft-1'],
+    })
+
+    expect(await screen.findByDisplayValue('Local bakery')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('500')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('Austin, TX')).toBeInTheDocument()
   })
 })

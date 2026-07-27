@@ -129,4 +129,21 @@ describe('CampaignsPage', () => {
 
     expect(screen.queryByRole('region', { name: /impact/i })).not.toBeInTheDocument()
   })
+
+  it('offers to refresh a client whose only launch is over 30 days old', async () => {
+    const staleDraft: DraftSummary = { ...DRAFTS[1], id: 'draft-stale', status: 'launched', createdAt: '2026-01-01T00:00:00Z' }
+    const apiClient = createFakeApiClient({ listBriefs: async () => [staleDraft], listClients: async () => ONE_CLIENT })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    const link = await screen.findByRole('link', { name: /refresh campaign/i })
+    expect(link).toHaveAttribute('href', '/campaigns/new?duplicateFrom=draft-stale')
+  })
+
+  it('does not offer a refresh for a recently launched client', async () => {
+    const apiClient = createFakeApiClient({ listBriefs: async () => DRAFTS, listClients: async () => ONE_CLIENT })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    await screen.findByText('Acme Plumbing')
+    expect(screen.queryByRole('link', { name: /refresh campaign/i })).not.toBeInTheDocument()
+  })
 })

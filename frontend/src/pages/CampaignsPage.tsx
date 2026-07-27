@@ -63,6 +63,23 @@ export function CampaignsPage() {
     }
   }, [drafts, clients])
 
+  const REBRIEF_ELIGIBLE_DAYS = 30
+
+  const rebriefCandidates = useMemo(() => {
+    if (!drafts) return []
+    const latestByClient = new Map<string, (typeof drafts)[number]>()
+    for (const draft of drafts) {
+      const current = latestByClient.get(draft.clientId)
+      if (!current || new Date(draft.createdAt) > new Date(current.createdAt)) {
+        latestByClient.set(draft.clientId, draft)
+      }
+    }
+    const cutoff = Date.now() - REBRIEF_ELIGIBLE_DAYS * 24 * 60 * 60 * 1000
+    return [...latestByClient.values()].filter(
+      (draft) => draft.status === 'launched' && new Date(draft.createdAt).getTime() < cutoff,
+    )
+  }, [drafts])
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
@@ -89,6 +106,24 @@ export function CampaignsPage() {
         <div role="region" aria-label="Impact" className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           <StatTile icon={TrendingUp} label="Est. hours saved" value={impactStats.estimatedHoursSaved.toFixed(0)} />
           <StatTile icon={ShieldCheck} label="Guardrail issues caught" value={impactStats.guardrailIssuesCaught} />
+        </div>
+      )}
+
+      {rebriefCandidates.length > 0 && (
+        <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-4">
+          <p className="text-sm font-medium text-foreground">Ready for a refresh</p>
+          <div className="flex flex-col gap-1.5">
+            {rebriefCandidates.map((draft) => (
+              <div key={draft.id} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-muted-foreground">
+                  {draft.clientName} — launched {new Date(draft.createdAt).toLocaleDateString()}
+                </span>
+                <Link to={`/campaigns/new?duplicateFrom=${draft.id}`} className="font-medium text-primary hover:underline">
+                  Refresh campaign
+                </Link>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

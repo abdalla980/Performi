@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useApiClient } from '../lib/apiClientContext'
 import type { BriefInput, Platform } from '../lib/types'
@@ -72,6 +72,8 @@ export function NewBriefPage() {
   const apiClient = useApiClient()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const duplicateFromDraftId = searchParams.get('duplicateFrom')
   const [rows, setRows] = useState<Record<string, BriefRow>>({})
   const [error, setError] = useState<string | null>(null)
 
@@ -79,6 +81,35 @@ export function NewBriefPage() {
     queryKey: ['clients'],
     queryFn: () => apiClient.listClients(),
   })
+
+  const { data: duplicateSource } = useQuery({
+    queryKey: ['briefs', duplicateFromDraftId],
+    queryFn: () => apiClient.getBrief(duplicateFromDraftId!),
+    enabled: Boolean(duplicateFromDraftId),
+  })
+
+  useEffect(() => {
+    if (!duplicateSource) return
+    setRows((prev) => ({
+      ...prev,
+      [duplicateSource.clientId]: {
+        businessDescription: duplicateSource.businessDescription,
+        budgetUsd: String(duplicateSource.budgetUsd),
+        goals: duplicateSource.goals,
+        websiteUrl: duplicateSource.websiteUrl ?? '',
+        targetLocation: duplicateSource.targetLocation ?? '',
+        targetAudience: duplicateSource.targetAudience ?? '',
+        // Deliberately not copied — a 30-day-old campaign's end date has likely
+        // already passed, and silently reusing it would submit an already-expired plan.
+        endDate: '',
+        platformGoogle: duplicateSource.platforms.includes('google'),
+        platformMeta: duplicateSource.platforms.includes('meta'),
+        competitors: duplicateSource.competitors ?? '',
+        uniqueSellingPoints: duplicateSource.uniqueSellingPoints ?? '',
+        excludedKeywords: duplicateSource.excludedKeywords.join(', '),
+      },
+    }))
+  }, [duplicateSource])
 
   const toggleClient = (clientId: string, checked: boolean) => {
     setRows((prev) => {
