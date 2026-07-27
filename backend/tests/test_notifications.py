@@ -120,3 +120,54 @@ def test_scopes_to_the_requesting_agency(client, db_session):
     assert response.json() == []
 
     main.app.dependency_overrides.clear()
+
+
+def test_flags_stale_client_pending_approval(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id, status="approved")
+    db_session.add(draft)
+    db_session.commit()
+    draft.updated_at = datetime.now(timezone.utc) - timedelta(days=6)
+    db_session.commit()
+
+    response = client.get("/notifications", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["kind"] == "client_pending_stale"
+    assert body[0]["client_name"] == "Client A"
+    assert body[0]["days_stale"] >= 6
+
+    main.app.dependency_overrides.clear()
+
+
+def test_flags_launch_failed(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id, status="failed")
+    db_session.add(draft)
+    db_session.commit()
+
+    response = client.get("/notifications", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body) == 1
+    assert body[0]["kind"] == "launch_failed"
+    assert body[0]["client_name"] == "Client A"
+
+    main.app.dependency_overrides.clear()
