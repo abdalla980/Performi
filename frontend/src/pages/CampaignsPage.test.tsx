@@ -6,6 +6,11 @@ import { createFakeApiClient } from '../test/fakeApiClient'
 import { renderWithProviders } from '../test/renderWithProviders'
 import type { DraftSummary } from '../lib/types'
 
+// Computed relative to "now" (rather than hardcoded calendar dates) so date-window
+// assertions (e.g. the 30-day rebrief cutoff) stay valid no matter when the suite runs.
+const DAY_MS = 24 * 60 * 60 * 1000
+const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS).toISOString()
+
 const DRAFTS: DraftSummary[] = [
   {
     id: 'draft-1',
@@ -20,7 +25,7 @@ const DRAFTS: DraftSummary[] = [
     goals: 'Traffic',
     guardrailFlagCount: 0,
     hasBlockingFlags: false,
-    createdAt: '2026-07-09T00:00:00Z',
+    createdAt: daysAgo(1),
   },
   {
     id: 'draft-2',
@@ -35,7 +40,7 @@ const DRAFTS: DraftSummary[] = [
     goals: 'Leads',
     guardrailFlagCount: 0,
     hasBlockingFlags: false,
-    createdAt: '2026-07-08T00:00:00Z',
+    createdAt: daysAgo(5),
   },
 ]
 
@@ -131,7 +136,7 @@ describe('CampaignsPage', () => {
   })
 
   it('offers to refresh a client whose only launch is over 30 days old', async () => {
-    const staleDraft: DraftSummary = { ...DRAFTS[1], id: 'draft-stale', status: 'launched', createdAt: '2026-01-01T00:00:00Z' }
+    const staleDraft: DraftSummary = { ...DRAFTS[1], id: 'draft-stale', status: 'launched', createdAt: daysAgo(45) }
     const apiClient = createFakeApiClient({ listBriefs: async () => [staleDraft], listClients: async () => ONE_CLIENT })
     renderWithProviders(<CampaignsPage />, { apiClient })
 
@@ -144,6 +149,28 @@ describe('CampaignsPage', () => {
     renderWithProviders(<CampaignsPage />, { apiClient })
 
     await screen.findByText('Acme Plumbing')
+    expect(screen.queryByRole('link', { name: /refresh campaign/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer a refresh when the only draft for a client was never launched', async () => {
+    const neverLaunched: DraftSummary = { ...DRAFTS[1], id: 'draft-rejected', status: 'rejected', createdAt: daysAgo(45) }
+    const apiClient = createFakeApiClient({ listBriefs: async () => [neverLaunched], listClients: async () => ONE_CLIENT })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    await screen.findByText('Acme Plumbing')
+    expect(screen.queryByRole('link', { name: /refresh campaign/i })).not.toBeInTheDocument()
+  })
+
+  it('does not offer a refresh when a newer in-review draft supersedes an old launched one', async () => {
+    const oldLaunched: DraftSummary = { ...DRAFTS[1], id: 'draft-old-launched', status: 'launched', createdAt: daysAgo(45) }
+    const newerInReview: DraftSummary = { ...DRAFTS[1], id: 'draft-newer-review', status: 'approved', createdAt: daysAgo(1) }
+    const apiClient = createFakeApiClient({
+      listBriefs: async () => [oldLaunched, newerInReview],
+      listClients: async () => ONE_CLIENT,
+    })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    await screen.findAllByText('Acme Plumbing')
     expect(screen.queryByRole('link', { name: /refresh campaign/i })).not.toBeInTheDocument()
   })
 })
