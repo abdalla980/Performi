@@ -8,6 +8,7 @@ import { ClientDetailPage } from './pages/ClientDetailPage'
 import { ClientPortalCampaignDetailPage } from './pages/ClientPortalCampaignDetailPage'
 import { ClientPortalCampaignsPage } from './pages/ClientPortalCampaignsPage'
 import { ClientsPage } from './pages/ClientsPage'
+import { ClientSummaryPage } from './pages/ClientSummaryPage'
 import { DraftDetailPage } from './pages/DraftDetailPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewBriefPage } from './pages/NewBriefPage'
@@ -20,6 +21,7 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
 
       <Route element={<RequireRole role="agency" />}>
+        <Route path="campaigns/:draftId/summary" element={<ClientSummaryPage />} />
         <Route element={<AppShell />}>
           <Route index element={<CampaignsPage />} />
           <Route path="campaigns/new" element={<NewBriefPage />} />

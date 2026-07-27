@@ -294,4 +294,30 @@ describe('DraftDetailPage', () => {
     await screen.findByText('Acme Bakery')
     expect(screen.queryByText('Projected performance')).not.toBeInTheDocument()
   })
+
+  it('shows a share-summary link once the campaign is client-approved or later', async () => {
+    const draft = baseDraft({ status: 'launched' })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    const link = await screen.findByRole('link', { name: /share summary/i })
+    expect(link).toHaveAttribute('href', '/campaigns/draft-1/summary')
+  })
+
+  it('hides the share-summary link before the client has approved', async () => {
+    const draft = baseDraft({ status: 'adapted' })
+    const apiClient = createFakeApiClient({ getBrief: async () => draft })
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    expect(screen.queryByRole('link', { name: /share summary/i })).not.toBeInTheDocument()
+  })
 })

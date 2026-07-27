@@ -1,15 +1,16 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, ExternalLink, XCircle } from 'lucide-react'
+import { CheckCircle2, ExternalLink, Share2, XCircle } from 'lucide-react'
 import { useApiClient } from '../lib/apiClientContext'
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../lib/statusDisplay'
 import type { Platform } from '../lib/types'
+import { cn } from '../lib/utils'
 import { GooglePlanView, MetaPlanView, ProjectedMetricsSection } from '../components/CampaignPlanViews'
 import { StatusStepper } from '../components/StatusStepper'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
+import { Button, buttonVariants } from '../components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Label } from '../components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
@@ -102,7 +103,20 @@ export function DraftDetailPage() {
           <h1 className="font-display text-xl font-semibold text-foreground">{draft.clientName}</h1>
           <p className="text-sm text-muted-foreground">{draft.businessDescription}</p>
         </div>
-        <Badge variant={STATUS_BADGE_VARIANT[draft.status]}>{STATUS_LABELS[draft.status]}</Badge>
+        <div className="flex items-center gap-2">
+          {['client_approved', 'launched', 'failed'].includes(draft.status) && (
+            <a
+              href={`/campaigns/${draftId}/summary`}
+              target="_blank"
+              rel="noreferrer"
+              className={cn(buttonVariants({ variant: 'outline' }), 'gap-2')}
+            >
+              <Share2 className="h-4 w-4" />
+              Share summary
+            </a>
+          )}
+          <Badge variant={STATUS_BADGE_VARIANT[draft.status]}>{STATUS_LABELS[draft.status]}</Badge>
+        </div>
       </div>
 
       <StatusStepper status={draft.status} />
