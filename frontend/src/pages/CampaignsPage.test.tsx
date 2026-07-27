@@ -116,4 +116,17 @@ describe('CampaignsPage', () => {
     expect(within(impact).getByText('6')).toBeInTheDocument()
     expect(within(impact).getByText('5')).toBeInTheDocument()
   })
+
+  it('does not show the impact stat row when no campaigns have launched', async () => {
+    const apiClient = createFakeApiClient({
+      listBriefs: async () => DRAFTS,
+      listClients: async () => ONE_CLIENT,
+      getImpactStats: async () => ({ campaignsLaunched: 0, estimatedHoursSaved: 0, guardrailIssuesCaught: 0 }),
+    })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    await screen.findByText('Acme Bakery')
+
+    expect(screen.queryByRole('region', { name: /impact/i })).not.toBeInTheDocument()
+  })
 })
