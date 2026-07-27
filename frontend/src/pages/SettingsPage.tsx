@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 
 const INTEGRATIONS: Array<{ key: keyof ConfigStatus; label: string }> = [
-  { key: 'anthropicConfigured', label: 'Anthropic (campaign generation)' },
+  { key: 'anthropicConfigured', label: 'AI campaign generation' },
   { key: 'googleAdsConfigured', label: 'Google Ads' },
   { key: 'metaConfigured', label: 'Meta' },
 ]
