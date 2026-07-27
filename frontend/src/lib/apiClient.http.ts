@@ -13,6 +13,7 @@ import type {
   GenerateResult,
   GoogleCampaignPlan,
   GuardrailReport,
+  ImpactStats,
   LaunchResponse,
   MetaCampaignPlan,
   Notification,
@@ -196,6 +197,12 @@ interface RawNotification {
   client_name: string
   kind: Notification['kind']
   days_stale: number
+}
+
+interface RawImpactStats {
+  campaigns_launched: number
+  estimated_hours_saved: number
+  guardrail_issues_caught: number
 }
 
 export function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
@@ -385,6 +392,14 @@ function toNotification(raw: RawNotification): Notification {
   return { draftId: raw.draft_id, clientName: raw.client_name, kind: raw.kind, daysStale: raw.days_stale }
 }
 
+function toImpactStats(raw: RawImpactStats): ImpactStats {
+  return {
+    campaignsLaunched: raw.campaigns_launched,
+    estimatedHoursSaved: raw.estimated_hours_saved,
+    guardrailIssuesCaught: raw.guardrail_issues_caught,
+  }
+}
+
 export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: HttpApiClientOptions): ApiClient {
   async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
     const token = await getAuthToken()
@@ -539,6 +554,10 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
     async listNotifications(): Promise<Notification[]> {
       const raw = await get<RawNotification[]>('/notifications')
       return raw.map(toNotification)
+    },
+
+    async getImpactStats(): Promise<ImpactStats> {
+      return toImpactStats(await get<RawImpactStats>('/stats/impact'))
     },
 
     async listAuditLog(limit = 100): Promise<AuditLogEntry[]> {

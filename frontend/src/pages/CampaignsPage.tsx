@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { AlertTriangle, CheckCircle2, Clock, ListChecks, Plus, Users } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Clock, ListChecks, Plus, ShieldCheck, TrendingUp, Users } from 'lucide-react'
 import { useApiClient } from '../lib/apiClientContext'
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../lib/statusDisplay'
 import type { CampaignDraftStatus, Platform } from '../lib/types'
@@ -43,6 +43,7 @@ export function CampaignsPage() {
     queryFn: () => apiClient.listBriefs(),
   })
   const { data: clients } = useQuery({ queryKey: ['clients'], queryFn: () => apiClient.listClients() })
+  const { data: impactStats } = useQuery({ queryKey: ['impact-stats'], queryFn: () => apiClient.getImpactStats() })
 
   const filteredDrafts = useMemo(() => {
     if (!drafts) return []
@@ -81,6 +82,13 @@ export function CampaignsPage() {
           <StatTile icon={Clock} label="Awaiting client review" value={stats.awaitingReview} />
           <StatTile icon={AlertTriangle} label="Needs attention" value={stats.needsAttention} />
           <StatTile icon={CheckCircle2} label="Launched" value={stats.launched} />
+        </div>
+      )}
+
+      {impactStats && impactStats.campaignsLaunched > 0 && (
+        <div role="region" aria-label="Impact" className="grid grid-cols-2 gap-3 sm:grid-cols-2">
+          <StatTile icon={TrendingUp} label="Est. hours saved" value={impactStats.estimatedHoursSaved.toFixed(0)} />
+          <StatTile icon={ShieldCheck} label="Guardrail issues caught" value={impactStats.guardrailIssuesCaught} />
         </div>
       )}
 

@@ -103,4 +103,17 @@ describe('CampaignsPage', () => {
     expect(within(stats).getByText('2')).toBeInTheDocument() // clients
     expect(within(stats).getAllByText('1')).toHaveLength(3) // awaiting review, needs attention, launched
   })
+
+  it('shows the impact stat row once campaigns have launched', async () => {
+    const apiClient = createFakeApiClient({
+      listBriefs: async () => DRAFTS,
+      listClients: async () => ONE_CLIENT,
+      getImpactStats: async () => ({ campaignsLaunched: 3, estimatedHoursSaved: 6, guardrailIssuesCaught: 5 }),
+    })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    const impact = await screen.findByRole('region', { name: /impact/i })
+    expect(within(impact).getByText('6')).toBeInTheDocument()
+    expect(within(impact).getByText('5')).toBeInTheDocument()
+  })
 })

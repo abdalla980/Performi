@@ -177,6 +177,12 @@ export interface AuditLogEntry {
   createdAt: string
 }
 
+export interface ImpactStats {
+  campaignsLaunched: number
+  estimatedHoursSaved: number
+  guardrailIssuesCaught: number
+}
+
 export interface ConfigStatus {
   anthropicConfigured: boolean
   googleAdsConfigured: boolean
@@ -228,6 +234,7 @@ export interface ApiClient {
   launchDraft(draftId: string): Promise<LaunchResponse>
 
   listNotifications(): Promise<Notification[]>
+  getImpactStats(): Promise<ImpactStats>
 
   listAuditLog(limit?: number): Promise<AuditLogEntry[]>
 }
