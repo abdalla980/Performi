@@ -114,7 +114,11 @@ def run_semantic_check(
     )
     response = anthropic_client.messages.create(
         model=settings.anthropic_model,
-        max_tokens=512,
+        # Matches generate_campaign_ir's max_tokens (llm_generation.py) -- the IR being
+        # reviewed here can be just as large (multiple audience segments, each with its
+        # own keywords/ad copy/interests, plus callouts/structured snippets), so the
+        # review response needs the same headroom or it gets truncated mid-JSON.
+        max_tokens=2048,
         system=_SEMANTIC_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )

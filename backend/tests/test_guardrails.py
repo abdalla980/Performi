@@ -10,12 +10,14 @@ from tests.ir_fixtures import make_campaign_ir
 class FakeAnthropicClient:
     def __init__(self, response_text: str):
         self._response_text = response_text
+        self.last_kwargs: dict | None = None
 
     class _Messages:
         def __init__(self, outer):
             self._outer = outer
 
         def create(self, **kwargs):
+            self._outer.last_kwargs = kwargs
             return SimpleNamespace(content=[SimpleNamespace(text=self._outer._response_text)])
 
     @property
@@ -142,6 +144,21 @@ def test_rule_checks_skips_unverified_flags_when_facts_provided():
     assert len(flags) == 1
     assert flags[0].code == "off_brand_tone"
     assert flags[0].severity == "warn"
+
+
+def test_semantic_check_requests_enough_tokens_for_a_full_campaign_review():
+    """Real incident: a CampaignIR with multiple audience segments (each carrying its
+    own keywords/ad copy/interests) plus callouts/structured snippets is now much
+    larger than the single-segment shape this was written against. max_tokens=512 was
+    too tight -- Claude's real review response got cut off mid-JSON, raising
+    JSONDecodeError, which (unhandled) surfaced to the browser as generic "Failed to
+    fetch". generate_campaign_ir (llm_generation.py) already uses max_tokens=2048 for
+    the same underlying reason; this call site must match it."""
+    fake_client = FakeAnthropicClient(json.dumps({"flags": []}))
+
+    run_semantic_check(_ir(), brand_voice=None, anthropic_client=fake_client)
+
+    assert fake_client.last_kwargs["max_tokens"] == 2048
 
 
 def test_semantic_check_strips_markdown_json_fence():
