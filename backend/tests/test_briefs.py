@@ -299,9 +299,14 @@ def test_get_brief_detail_includes_projected_metrics_after_generation(client, db
             "objective": "traffic",
             "daily_budget_usd": 20.0,
             "end_date": None,
-            "keywords": ["bakery"],
-            "audience_description": "Adults near Austin",
-            "ad_copy": [{"headline": "Fresh", "description": "Visit."}],
+            "audience_segments": [
+                {
+                    "name": "Primary",
+                    "description": "Adults near Austin",
+                    "keywords": [{"text": "bakery", "match_type": "phrase"}],
+                    "ad_copy": [{"headline": "Fresh", "description": "Visit."}],
+                }
+            ],
             "call_to_action": "Visit Us",
             "website_url": None,
             "negative_keywords": [],

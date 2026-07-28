@@ -1,13 +1,20 @@
 from pydantic import BaseModel
 
 
+class MetaCreative(BaseModel):
+    headline: str
+    body: str
+    call_to_action: str
+
+
 class MetaAdSet(BaseModel):
     name: str
     daily_budget_cents: int
     targeting_description: str
-    creative_headline: str
-    creative_body: str
-    call_to_action: str
+    age_min: int | None = None
+    age_max: int | None = None
+    interests: list[str] = []
+    creatives: list[MetaCreative]
 
 
 class MetaCampaignPlan(BaseModel):

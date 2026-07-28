@@ -29,11 +29,22 @@ interface HttpApiClientOptions {
   fetchFn?: typeof fetch
 }
 
+interface RawGoogleKeyword {
+  text: string
+  match_type: 'exact' | 'phrase' | 'broad'
+}
+
 interface RawGoogleAdGroup {
   name: string
-  keywords: string[]
+  keywords: RawGoogleKeyword[]
   headlines: string[]
   descriptions: string[]
+}
+
+interface RawSitelink {
+  text: string
+  url: string
+  description: string | null
 }
 
 export interface RawGooglePlan {
@@ -43,15 +54,25 @@ export interface RawGooglePlan {
   final_url: string | null
   negative_keywords: string[]
   ad_groups: RawGoogleAdGroup[]
+  callouts?: string[]
+  structured_snippets?: Record<string, string[]>
+  sitelinks?: RawSitelink[]
+}
+
+interface RawMetaCreative {
+  headline: string
+  body: string
+  call_to_action: string
 }
 
 interface RawMetaAdSet {
   name: string
   daily_budget_cents: number
   targeting_description: string
-  creative_headline: string
-  creative_body: string
-  call_to_action: string
+  age_min?: number | null
+  age_max?: number | null
+  interests?: string[]
+  creatives: RawMetaCreative[]
 }
 
 export interface RawMetaPlan {
@@ -214,9 +235,19 @@ export function toGooglePlan(raw: RawGooglePlan): GoogleCampaignPlan {
     negativeKeywords: raw.negative_keywords,
     adGroups: raw.ad_groups.map((group) => ({
       name: group.name,
-      keywords: group.keywords,
+      keywords: group.keywords.map((keyword) => ({
+        text: keyword.text,
+        matchType: keyword.match_type ?? 'phrase',
+      })),
       headlines: group.headlines,
       descriptions: group.descriptions,
+    })),
+    callouts: raw.callouts ?? [],
+    structuredSnippets: raw.structured_snippets ?? {},
+    sitelinks: (raw.sitelinks ?? []).map((link) => ({
+      text: link.text,
+      url: link.url,
+      description: link.description,
     })),
   }
 }
@@ -230,9 +261,14 @@ export function toMetaPlan(raw: RawMetaPlan): MetaCampaignPlan {
       name: adSet.name,
       dailyBudgetCents: adSet.daily_budget_cents,
       targetingDescription: adSet.targeting_description,
-      creativeHeadline: adSet.creative_headline,
-      creativeBody: adSet.creative_body,
-      callToAction: adSet.call_to_action,
+      ageMin: adSet.age_min ?? null,
+      ageMax: adSet.age_max ?? null,
+      interests: adSet.interests ?? [],
+      creatives: adSet.creatives.map((creative) => ({
+        headline: creative.headline,
+        body: creative.body,
+        callToAction: creative.call_to_action,
+      })),
     })),
   }
 }

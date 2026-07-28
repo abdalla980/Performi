@@ -5,19 +5,9 @@ from app.models.agency import Agency
 from app.models.brief import Brief, CampaignDraft
 from app.models.client import Client
 from tests.conftest import make_supabase_jwt
+from tests.ir_fixtures import make_campaign_ir_json
 
-_FAKE_IR_JSON = json.dumps(
-    {
-        "campaign_name": "Austin Bakery Foot Traffic",
-        "objective": "traffic",
-        "daily_budget_usd": 16.5,
-        "end_date": None,
-        "keywords": ["bakery near me"],
-        "audience_description": "Adults 25-54 near Austin",
-        "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
-        "call_to_action": "Visit Us Today",
-    }
-)
+_FAKE_IR_JSON = json.dumps(make_campaign_ir_json())
 
 
 class _FakeMessages:

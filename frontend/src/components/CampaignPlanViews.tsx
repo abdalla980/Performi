@@ -23,12 +23,53 @@ export function GooglePlanView({ plan }: { plan: GoogleCampaignPlan }) {
           ))}
         </div>
       )}
+      {plan.callouts.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">Callouts:</span>
+          {plan.callouts.map((callout) => (
+            <Badge key={callout} variant="primary">
+              {callout}
+            </Badge>
+          ))}
+        </div>
+      )}
+      {Object.keys(plan.structuredSnippets).length > 0 && (
+        <div className="flex flex-col gap-2">
+          {Object.entries(plan.structuredSnippets).map(([header, values]) => (
+            <div key={header} className="flex flex-wrap items-center gap-1.5">
+              <span className="text-xs font-medium text-muted-foreground">{header}:</span>
+              {values.map((value) => (
+                <Badge key={value}>{value}</Badge>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+      {plan.sitelinks.length > 0 && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-medium text-muted-foreground">Sitelinks:</span>
+          {plan.sitelinks.map((link) => (
+            <a
+              key={`${link.text}-${link.url}`}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm text-primary hover:underline"
+            >
+              {link.text}
+            </a>
+          ))}
+        </div>
+      )}
       {plan.adGroups.map((adGroup) => (
         <div key={adGroup.name} className="rounded-md border border-border p-4">
           <h3 className="text-sm font-semibold text-foreground">{adGroup.name}</h3>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {adGroup.keywords.map((keyword) => (
-              <Badge key={keyword}>{keyword}</Badge>
+              <Badge key={keyword.text}>
+                {keyword.text}
+                <span className="ml-1 text-[10px] uppercase text-muted-foreground">{keyword.matchType}</span>
+              </Badge>
             ))}
           </div>
           <div className="mt-3 flex flex-col gap-1">
@@ -69,9 +110,23 @@ export function MetaPlanView({ plan }: { plan: MetaCampaignPlan }) {
             <span className="text-sm text-muted-foreground">${(adSet.dailyBudgetCents / 100).toFixed(2)}/day</span>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">{adSet.targetingDescription}</p>
-          <p className="mt-3 text-sm font-medium text-foreground">{adSet.creativeHeadline}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{adSet.creativeBody}</p>
-          <Badge className="mt-2">{adSet.callToAction}</Badge>
+          {(adSet.ageMin != null || adSet.ageMax != null || adSet.interests.length > 0) && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {adSet.ageMin != null || adSet.ageMax != null
+                ? `Ages ${adSet.ageMin ?? '?'}–${adSet.ageMax ?? '?'}`
+                : null}
+              {adSet.interests.length > 0 ? ` · Interests: ${adSet.interests.join(', ')}` : null}
+            </p>
+          )}
+          <div className="mt-3 flex flex-col gap-3">
+            {adSet.creatives.map((creative, index) => (
+              <div key={`${creative.headline}-${index}`} className="rounded-md border border-border/60 p-3">
+                <p className="text-sm font-medium text-foreground">{creative.headline}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{creative.body}</p>
+                <Badge className="mt-2">{creative.callToAction}</Badge>
+              </div>
+            ))}
+          </div>
         </div>
       ))}
     </div>
@@ -120,29 +175,28 @@ export function ProjectedMetricsSection({ metrics }: { metrics: ProjectedMetrics
             }
           />
         </div>
-
-        {metrics.platforms.length > 1 && (
-          <div className="flex flex-col gap-3">
-            <p className="text-xs font-medium text-muted-foreground">Estimated daily clicks by platform</p>
-            {metrics.platforms.map((platform) => (
-              <div key={platform.platform} className="flex items-center gap-3">
-                <span className="w-24 shrink-0 text-sm text-foreground">{PLATFORM_LABEL[platform.platform]}</span>
-                <div className="h-6 flex-1 rounded-r-[4px] bg-muted">
-                  <div
-                    className="h-6 rounded-r-[4px]"
-                    style={{
-                      width: `${Math.max((platform.estimatedDailyClicks / maxClicks) * 100, 4)}%`,
-                      backgroundColor: PLATFORM_COLOR[platform.platform],
-                    }}
-                  />
-                </div>
-                <span className="w-12 shrink-0 text-right text-sm font-medium text-foreground">
-                  {platform.estimatedDailyClicks.toFixed(1)}
+        <div className="flex flex-col gap-3">
+          {metrics.platforms.map((platform) => (
+            <div key={platform.platform} className="flex flex-col gap-1">
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-foreground">{PLATFORM_LABEL[platform.platform]}</span>
+                <span className="text-muted-foreground">
+                  ${platform.dailyBudgetUsd.toFixed(2)}/day · {formatCompactNumber(platform.estimatedDailyClicks)}{' '}
+                  clicks
                 </span>
               </div>
-            ))}
-          </div>
-        )}
+              <div className="h-2 overflow-hidden rounded-full bg-surface">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${(platform.estimatedDailyClicks / maxClicks) * 100}%`,
+                    backgroundColor: PLATFORM_COLOR[platform.platform],
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

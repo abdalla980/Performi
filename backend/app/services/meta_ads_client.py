@@ -93,16 +93,17 @@ class RealMetaAdsPushClient:
             )
             adset_id = adset[AdSet.Field.id]
 
+            primary = ad_set.creatives[0]
             creative = account.create_ad_creative(
                 params={
                     AdCreative.Field.name: f"{ad_set.name} Creative",
                     AdCreative.Field.object_story_spec: {
                         "page_id": settings.meta_page_id,
                         "link_data": {
-                            "message": ad_set.creative_body,
+                            "message": primary.body,
                             "link": plan.website_url,
-                            "name": ad_set.creative_headline,
-                            # ad_set.call_to_action is free-text ad copy, not one of
+                            "name": primary.headline,
+                            # primary.call_to_action is free-text ad copy, not one of
                             # Meta's fixed CTA button values — use a safe universal
                             # default for the button itself.
                             "call_to_action": {"type": "LEARN_MORE"},

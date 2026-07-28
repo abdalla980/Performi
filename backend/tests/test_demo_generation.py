@@ -15,8 +15,9 @@ def test_generate_demo_campaign_ir_infers_traffic_objective_from_goals():
 
     assert ir.objective == "traffic"
     assert 1.0 <= ir.daily_budget_usd <= 10_000.0
-    assert len(ir.keywords) > 0
-    assert len(ir.ad_copy) >= 1
+    segment = ir.audience_segments[0]
+    assert len(segment.keywords) > 0
+    assert len(segment.ad_copy) >= 1
 
 
 def test_generate_demo_campaign_ir_infers_leads_objective_and_uses_approved_offer():
@@ -37,7 +38,7 @@ def test_generate_demo_campaign_ir_infers_leads_objective_and_uses_approved_offe
     ir = generate_demo_campaign_ir(brief, brand_voice=brand_voice)
 
     assert ir.objective == "leads"
-    assert any("$50 off first service call" in variant.description for variant in ir.ad_copy)
+    assert any("$50 off first service call" in variant.description for variant in ir.audience_segments[0].ad_copy)
 
 
 def test_generate_demo_campaign_ir_never_uses_banned_terms():
@@ -56,8 +57,15 @@ def test_generate_demo_campaign_ir_never_uses_banned_terms():
     )
 
     ir = generate_demo_campaign_ir(brief, brand_voice=brand_voice)
+    segment = ir.audience_segments[0]
 
-    haystack = " ".join([ir.campaign_name, *[k for k in ir.keywords], *[c.headline + c.description for c in ir.ad_copy]]).lower()
+    haystack = " ".join(
+        [
+            ir.campaign_name,
+            *[k.text for k in segment.keywords],
+            *[c.headline + c.description for c in segment.ad_copy],
+        ]
+    ).lower()
     assert "cheap" not in haystack
     assert "discount" not in haystack
 
@@ -74,8 +82,9 @@ def test_generate_demo_campaign_ir_uses_target_audience_and_location():
 
     ir = generate_demo_campaign_ir(brief, brand_voice=None)
 
-    assert "Families with young kids" in ir.audience_description
-    assert "Austin, TX" in ir.audience_description
+    description = ir.audience_segments[0].description
+    assert "Families with young kids" in description
+    assert "Austin, TX" in description
 
 
 def test_generate_demo_campaign_ir_excludes_negative_keywords():
@@ -88,8 +97,9 @@ def test_generate_demo_campaign_ir_excludes_negative_keywords():
     )
 
     ir = generate_demo_campaign_ir(brief, brand_voice=None)
+    segment = ir.audience_segments[0]
 
-    assert "bakery near me" not in [k.lower() for k in ir.keywords]
+    assert "bakery near me" not in [k.text.lower() for k in segment.keywords]
     assert ir.negative_keywords == ["bakery near me"]
 
 

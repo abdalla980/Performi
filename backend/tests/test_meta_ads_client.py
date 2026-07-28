@@ -1,7 +1,7 @@
 import pytest
 
 from app.config import get_settings
-from app.schemas.meta_plan import MetaAdSet, MetaCampaignPlan
+from app.schemas.meta_plan import MetaAdSet, MetaCampaignPlan, MetaCreative
 from app.services.meta_ads_client import RealMetaAdsPushClient
 
 
@@ -23,9 +23,13 @@ def _plan(objective="traffic", **overrides) -> MetaCampaignPlan:
                 name="Primary",
                 daily_budget_cents=1650,
                 targeting_description="Adults 25-54 near Austin",
-                creative_headline="Fresh Pastries Daily",
-                creative_body="Visit today.",
-                call_to_action="Visit Us Today",
+                creatives=[
+                    MetaCreative(
+                        headline="Fresh Pastries Daily",
+                        body="Visit today.",
+                        call_to_action="Visit Us Today",
+                    )
+                ],
             )
         ],
     )

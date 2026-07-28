@@ -18,6 +18,8 @@ _SEMANTIC_SYSTEM_PROMPT = (
 
 def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> list[GuardrailFlag]:
     flags: list[GuardrailFlag] = []
+    all_ad_copy = [copy for segment in ir.audience_segments for copy in segment.ad_copy]
+    all_keywords = [kw.text for segment in ir.audience_segments for kw in segment.keywords]
 
     if not (_MIN_DAILY_BUDGET_USD <= ir.daily_budget_usd <= _MAX_DAILY_BUDGET_USD):
         flags.append(
@@ -31,9 +33,19 @@ def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> li
             )
         )
 
+    for segment in ir.audience_segments:
+        if not segment.ad_copy:
+            flags.append(
+                GuardrailFlag(
+                    severity="warn",
+                    code="empty_segment_ad_copy",
+                    message=f"Audience segment '{segment.name}' has no ad copy variants.",
+                )
+            )
+
     if brand_voice:
         haystack = " ".join(
-            [ir.campaign_name, *[c.headline + " " + c.description for c in ir.ad_copy]]
+            [ir.campaign_name, *[c.headline + " " + c.description for c in all_ad_copy]]
         ).lower()
         for banned in brand_voice.banned_terms:
             if banned.lower() in haystack:
@@ -46,7 +58,7 @@ def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> li
                 )
 
     negative_keywords = {keyword.lower() for keyword in ir.negative_keywords}
-    overlap = sorted({keyword for keyword in ir.keywords if keyword.lower() in negative_keywords})
+    overlap = sorted({keyword for keyword in all_keywords if keyword.lower() in negative_keywords})
     if overlap:
         flags.append(
             GuardrailFlag(
@@ -79,5 +91,5 @@ def run_semantic_check(
     # See llm_generation.py's generate_campaign_ir for why content[0] isn't safe to
     # assume is text (extended-thinking responses put a ThinkingBlock first).
     raw_text = next(block.text for block in response.content if hasattr(block, "text"))
-    parsed = json.loads(strip_markdown_json_fence(raw_text))
-    return [GuardrailFlag.model_validate(f) for f in parsed["flags"]]
+    payload = json.loads(strip_markdown_json_fence(raw_text))
+    return [GuardrailFlag.model_validate(f) for f in payload.get("flags", [])]

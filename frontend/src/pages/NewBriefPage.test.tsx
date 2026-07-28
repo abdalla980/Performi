@@ -5,6 +5,7 @@ import { NewBriefPage } from './NewBriefPage'
 import { createFakeApiClient } from '../test/fakeApiClient'
 import { renderWithProviders } from '../test/renderWithProviders'
 import type { Client, DraftDetail, DraftSummary, GenerateResult } from '../lib/types'
+import { emptyGooglePlan, emptyMetaPlan } from '../test/planFixtures'
 
 const CLIENTS: Client[] = [
   {
@@ -40,15 +41,8 @@ describe('NewBriefPage', () => {
       briefId: draft.briefId,
       status: 'adapted',
       mode: 'demo',
-      googlePlan: {
-        campaignName: 'Bakery',
-        dailyBudgetMicros: 0,
-        endDate: null,
-        finalUrl: null,
-        negativeKeywords: [],
-        adGroups: [],
-      },
-      metaPlan: { campaignName: 'Bakery', objective: 'traffic', websiteUrl: null, adSets: [] },
+      googlePlan: emptyGooglePlan({ campaignName: 'Bakery', dailyBudgetMicros: 0 }),
+      metaPlan: emptyMetaPlan({ campaignName: 'Bakery' }),
     }
 
     const submitBriefsBatch = vi.fn().mockResolvedValue([draft])

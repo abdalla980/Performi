@@ -91,10 +91,10 @@ class RealGoogleAdsPushClient:
 
             if group.keywords:
                 keyword_ops = []
-                for keyword_text in group.keywords:
+                for keyword in group.keywords:
                     criterion_op = gclient.get_type("AdGroupCriterionOperation")
                     criterion_op.create.ad_group = group_resource
-                    criterion_op.create.keyword.text = keyword_text
+                    criterion_op.create.keyword.text = keyword.text
                     criterion_op.create.keyword.match_type = gclient.enums.KeywordMatchTypeEnum.PHRASE
                     keyword_ops.append(criterion_op)
                 ad_group_criterion_service.mutate_ad_group_criteria(

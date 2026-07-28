@@ -2,18 +2,10 @@ from app.models.agency import Agency
 from app.models.brief import Brief, CampaignDraft
 from app.models.client import Client
 from app.models.guardrail import GuardrailReport
-from app.schemas.campaign_ir import AdCopyVariant, CampaignIR
 from tests.conftest import make_supabase_jwt
+from tests.ir_fixtures import make_campaign_ir
 
-_IR = CampaignIR(
-    campaign_name="Austin Bakery",
-    objective="traffic",
-    daily_budget_usd=16.5,
-    keywords=["bakery near me"],
-    audience_description="Adults 25-54 near Austin",
-    ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
-    call_to_action="Visit Us Today",
-).model_dump(mode="json")
+_IR = make_campaign_ir().model_dump(mode="json")
 
 
 def _setup(db_session, has_blocking_flags: bool):

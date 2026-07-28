@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from app.models.brand_voice import BrandVoiceProfile
 from app.models.brief import Brief
 from app.services.llm_generation import generate_campaign_ir
+from tests.ir_fixtures import make_campaign_ir_json
 
 
 class FakeAnthropicClient:
@@ -31,26 +32,25 @@ def test_generate_campaign_ir_parses_model_output():
         budget_usd=500,
         goals="Drive foot traffic",
     )
-    fake_response = json.dumps(
-        {
-            "campaign_name": "Austin Bakery Foot Traffic",
-            "objective": "traffic",
-            "daily_budget_usd": 16.5,
-            "end_date": None,
-            "keywords": ["bakery near me", "austin pastries"],
-            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
-            "ad_copy": [
-                {"headline": "Fresh Pastries Daily", "description": "Visit our Austin bakery today."}
-            ],
-            "call_to_action": "Visit Us Today",
-        }
+    payload = make_campaign_ir_json(
+        audience_segments=[
+            {
+                "name": "Primary",
+                "description": "Adults 25-54 within 5 miles of Austin bakery",
+                "keywords": [
+                    {"text": "bakery near me", "match_type": "phrase"},
+                    {"text": "austin pastries", "match_type": "phrase"},
+                ],
+                "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit our Austin bakery today."}],
+            }
+        ],
     )
-    fake_client = FakeAnthropicClient(fake_response)
+    fake_client = FakeAnthropicClient(json.dumps(payload))
 
     ir = generate_campaign_ir(brief, anthropic_client=fake_client)
 
     assert ir.campaign_name == "Austin Bakery Foot Traffic"
-    assert ir.keywords == ["bakery near me", "austin pastries"]
+    assert [k.text for k in ir.audience_segments[0].keywords] == ["bakery near me", "austin pastries"]
     assert "Local bakery in Austin" in fake_client.last_prompt["messages"][0]["content"]
 
 
@@ -68,19 +68,7 @@ def test_generate_campaign_ir_includes_brand_voice_in_prompt():
         required_disclaimers=[],
         approved_offers=["Free coffee with pastry purchase"],
     )
-    fake_response = json.dumps(
-        {
-            "campaign_name": "Austin Bakery Foot Traffic",
-            "objective": "traffic",
-            "daily_budget_usd": 16.5,
-            "end_date": None,
-            "keywords": ["bakery near me"],
-            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
-            "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
-            "call_to_action": "Visit Us Today",
-        }
-    )
-    fake_client = FakeAnthropicClient(fake_response)
+    fake_client = FakeAnthropicClient(json.dumps(make_campaign_ir_json()))
 
     generate_campaign_ir(brief, anthropic_client=fake_client, brand_voice=brand_voice)
 
@@ -102,19 +90,7 @@ def test_generate_campaign_ir_includes_new_brief_details_in_prompt():
         unique_selling_points="Family recipes since 1990",
         excluded_keywords=["free", "cheap"],
     )
-    fake_response = json.dumps(
-        {
-            "campaign_name": "Austin Bakery Foot Traffic",
-            "objective": "traffic",
-            "daily_budget_usd": 16.5,
-            "end_date": None,
-            "keywords": ["bakery near me"],
-            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
-            "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
-            "call_to_action": "Visit Us Today",
-        }
-    )
-    fake_client = FakeAnthropicClient(fake_response)
+    fake_client = FakeAnthropicClient(json.dumps(make_campaign_ir_json()))
 
     generate_campaign_ir(brief, anthropic_client=fake_client)
 
@@ -134,22 +110,7 @@ def test_generate_campaign_ir_strips_markdown_json_fence():
         budget_usd=500,
         goals="Drive foot traffic",
     )
-    fenced_response = (
-        "```json\n"
-        + json.dumps(
-            {
-                "campaign_name": "Austin Bakery Foot Traffic",
-                "objective": "traffic",
-                "daily_budget_usd": 16.5,
-                "end_date": None,
-                "keywords": ["bakery near me"],
-                "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
-                "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
-                "call_to_action": "Visit Us Today",
-            }
-        )
-        + "\n```"
-    )
+    fenced_response = "```json\n" + json.dumps(make_campaign_ir_json()) + "\n```"
     fake_client = FakeAnthropicClient(fenced_response)
 
     ir = generate_campaign_ir(brief, anthropic_client=fake_client)
@@ -169,19 +130,7 @@ def test_generate_campaign_ir_overrides_facts_from_brief():
         end_date=date(2026, 12, 31),
         excluded_keywords=["free", "cheap"],
     )
-    fake_response = json.dumps(
-        {
-            "campaign_name": "Austin Bakery Foot Traffic",
-            "objective": "traffic",
-            "daily_budget_usd": 16.5,
-            "end_date": "2099-01-01",
-            "keywords": ["bakery near me"],
-            "audience_description": "Adults 25-54 within 5 miles of Austin bakery",
-            "ad_copy": [{"headline": "Fresh Pastries Daily", "description": "Visit today."}],
-            "call_to_action": "Visit Us Today",
-        }
-    )
-    fake_client = FakeAnthropicClient(fake_response)
+    fake_client = FakeAnthropicClient(json.dumps(make_campaign_ir_json(end_date="2099-01-01")))
 
     ir = generate_campaign_ir(brief, anthropic_client=fake_client)
 

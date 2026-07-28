@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from app.schemas.google_plan import GoogleAdGroup, GoogleCampaignPlan
+from app.schemas.google_plan import GoogleAdGroup, GoogleCampaignPlan, GoogleKeyword
 from app.services.google_ads_client import RealGoogleAdsPushClient
 
 
@@ -106,7 +106,7 @@ def _plan(**overrides) -> GoogleCampaignPlan:
         ad_groups=[
             GoogleAdGroup(
                 name="Primary",
-                keywords=["bakery near me", "fresh pastries"],
+                keywords=[GoogleKeyword(text="bakery near me"), GoogleKeyword(text="fresh pastries")],
                 headlines=["Fresh Pastries Daily", "Austin's Best Bakery", "Order Online Now"],
                 descriptions=["Visit today.", "Baked fresh every morning."],
             )

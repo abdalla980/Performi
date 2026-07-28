@@ -1,8 +1,19 @@
+export interface GoogleKeyword {
+  text: string
+  matchType: 'exact' | 'phrase' | 'broad'
+}
+
 export interface GoogleAdGroupPlan {
   name: string
-  keywords: string[]
+  keywords: GoogleKeyword[]
   headlines: string[]
   descriptions: string[]
+}
+
+export interface Sitelink {
+  text: string
+  url: string
+  description: string | null
 }
 
 export interface GoogleCampaignPlan {
@@ -12,15 +23,25 @@ export interface GoogleCampaignPlan {
   finalUrl: string | null
   negativeKeywords: string[]
   adGroups: GoogleAdGroupPlan[]
+  callouts: string[]
+  structuredSnippets: Record<string, string[]>
+  sitelinks: Sitelink[]
+}
+
+export interface MetaCreative {
+  headline: string
+  body: string
+  callToAction: string
 }
 
 export interface MetaAdSetPlan {
   name: string
   dailyBudgetCents: number
   targetingDescription: string
-  creativeHeadline: string
-  creativeBody: string
-  callToAction: string
+  ageMin: number | null
+  ageMax: number | null
+  interests: string[]
+  creatives: MetaCreative[]
 }
 
 export interface MetaCampaignPlan {
