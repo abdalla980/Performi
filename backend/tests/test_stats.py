@@ -106,3 +106,31 @@ def test_scopes_to_the_requesting_agency(client, db_session):
     assert body["guardrail_issues_caught"] == 0
 
     main.app.dependency_overrides.clear()
+
+
+def test_archived_launched_drafts_still_count_in_impact_stats(client, db_session):
+    from datetime import datetime, timezone
+
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    db_session.add(
+        CampaignDraft(
+            brief_id=brief.id,
+            status="launched",
+            archived_at=datetime.now(timezone.utc),
+        )
+    )
+    db_session.commit()
+
+    response = client.get("/stats/impact", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["campaigns_launched"] == 1
+
+    main.app.dependency_overrides.clear()

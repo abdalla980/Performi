@@ -137,6 +137,7 @@ export interface DraftSummary {
   guardrailFlagCount: number
   hasBlockingFlags: boolean
   createdAt: string
+  launches: PlatformLaunchResult[]
 }
 
 export interface GuardrailFlag {
@@ -263,6 +264,7 @@ export interface ApiClient {
   approveDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
   rejectDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
   launchDraft(draftId: string): Promise<LaunchResponse>
+  archiveDraft(draftId: string): Promise<DraftSummary>
 
   listNotifications(): Promise<Notification[]>
   getImpactStats(): Promise<ImpactStats>

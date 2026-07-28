@@ -60,6 +60,7 @@ class DraftSummaryResponse(BaseModel):
     guardrail_flag_count: int
     has_blocking_flags: bool
     created_at: datetime
+    launches: list[PlatformLaunchResult] = []
 
 
 class DraftDetailResponse(DraftSummaryResponse):
@@ -77,5 +78,4 @@ class DraftDetailResponse(DraftSummaryResponse):
     google_plan: GoogleCampaignPlan | None = None
     meta_plan: MetaCampaignPlan | None = None
     guardrail: GuardrailReportResponse | None = None
-    launches: list[PlatformLaunchResult] = []
     projected_metrics: ProjectedMetrics | None = None

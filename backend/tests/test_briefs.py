@@ -378,3 +378,104 @@ def test_get_brief_detail_rejects_other_agency(client, db_session):
     assert response.status_code == 404
 
     main.app.dependency_overrides.clear()
+
+
+def test_archive_launched_draft_hides_from_list_but_keeps_detail(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id, status="launched")
+    db_session.add(draft)
+    db_session.flush()
+    db_session.add(
+        LaunchRecord(
+            campaign_draft_id=draft.id,
+            platform="meta",
+            status="success",
+            external_campaign_id="987",
+        )
+    )
+    db_session.commit()
+
+    archive = client.post(f"/briefs/{draft.id}/archive", headers=headers)
+    assert archive.status_code == 200
+    assert archive.json()["id"] == str(draft.id)
+    assert archive.json()["launches"][0]["external_campaign_id"] == "987"
+
+    listed = client.get("/briefs", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json() == []
+
+    detail = client.get(f"/briefs/{draft.id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["status"] == "launched"
+    db_session.refresh(draft)
+    assert draft.archived_at is not None
+
+    main.app.dependency_overrides.clear()
+
+
+def test_archive_rejects_non_launched_draft(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id, status="adapted")
+    db_session.add(draft)
+    db_session.commit()
+
+    response = client.post(f"/briefs/{draft.id}/archive", headers=headers)
+
+    assert response.status_code == 409
+    assert "launched" in response.json()["detail"].lower()
+
+    main.app.dependency_overrides.clear()
+
+
+def test_list_briefs_batches_launches_per_draft(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    client_row, headers = _agency_and_client(db_session)
+
+    brief_a = Brief(client_id=client_row.id, business_description="A", budget_usd=500, goals="Traffic")
+    brief_b = Brief(client_id=client_row.id, business_description="B", budget_usd=600, goals="Leads")
+    db_session.add_all([brief_a, brief_b])
+    db_session.flush()
+    draft_a = CampaignDraft(brief_id=brief_a.id, status="launched")
+    draft_b = CampaignDraft(brief_id=brief_b.id, status="launched")
+    db_session.add_all([draft_a, draft_b])
+    db_session.flush()
+    db_session.add_all(
+        [
+            LaunchRecord(
+                campaign_draft_id=draft_a.id,
+                platform="google",
+                status="success",
+                external_campaign_id="g-a",
+            ),
+            LaunchRecord(
+                campaign_draft_id=draft_b.id,
+                platform="meta",
+                status="success",
+                external_campaign_id="m-b",
+            ),
+        ]
+    )
+    db_session.commit()
+
+    response = client.get("/briefs", headers=headers)
+
+    assert response.status_code == 200
+    by_id = {row["id"]: row for row in response.json()}
+    assert [launch["external_campaign_id"] for launch in by_id[str(draft_a.id)]["launches"]] == ["g-a"]
+    assert [launch["external_campaign_id"] for launch in by_id[str(draft_b.id)]["launches"]] == ["m-b"]
+
+    main.app.dependency_overrides.clear()

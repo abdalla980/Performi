@@ -40,7 +40,11 @@ def _find_launched_campaigns(db: Session, client_id: uuid.UUID) -> list[dict]:
     drafts = db.scalars(
         select(CampaignDraft)
         .join(Brief, CampaignDraft.brief_id == Brief.id)
-        .where(Brief.client_id == client_id, CampaignDraft.status == "launched")
+        .where(
+            Brief.client_id == client_id,
+            CampaignDraft.status == "launched",
+            CampaignDraft.archived_at.is_(None),
+        )
     ).all()
     result = []
     for draft in drafts:

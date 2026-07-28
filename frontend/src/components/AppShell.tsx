@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { AlertTriangle, ClipboardList, ListChecks, LogOut, Settings, Users } from 'lucide-react'
+import { AlertTriangle, ClipboardList, ListChecks, LogOut, Rocket, Settings, Users } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../lib/authContext'
 import { useApiClient } from '../lib/apiClientContext'
@@ -10,6 +10,7 @@ import { NotificationsMenu } from './NotificationsMenu'
 
 const NAV_ITEMS = [
   { to: '/', label: 'Campaigns', icon: ListChecks, end: true },
+  { to: '/launched', label: 'Launched', icon: Rocket, end: false },
   { to: '/clients', label: 'Clients', icon: Users, end: false },
   { to: '/audit', label: 'Activity', icon: ClipboardList, end: false },
   { to: '/settings', label: 'Settings', icon: Settings, end: false },

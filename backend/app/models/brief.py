@@ -46,5 +46,6 @@ class CampaignDraft(Base):
     updated_at: Mapped[datetime] = mapped_column(
         default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
     )
+    archived_at: Mapped[datetime | None] = mapped_column(default=None)
 
     brief: Mapped["Brief"] = relationship(back_populates="draft")

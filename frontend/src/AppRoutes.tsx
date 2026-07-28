@@ -10,6 +10,7 @@ import { ClientPortalCampaignsPage } from './pages/ClientPortalCampaignsPage'
 import { ClientsPage } from './pages/ClientsPage'
 import { ClientSummaryPage } from './pages/ClientSummaryPage'
 import { DraftDetailPage } from './pages/DraftDetailPage'
+import { LaunchedCampaignsPage } from './pages/LaunchedCampaignsPage'
 import { LoginPage } from './pages/LoginPage'
 import { NewBriefPage } from './pages/NewBriefPage'
 import { NewClientPage } from './pages/NewClientPage'
@@ -24,6 +25,7 @@ export function AppRoutes() {
         <Route path="campaigns/:draftId/summary" element={<ClientSummaryPage />} />
         <Route element={<AppShell />}>
           <Route index element={<CampaignsPage />} />
+          <Route path="launched" element={<LaunchedCampaignsPage />} />
           <Route path="campaigns/new" element={<NewBriefPage />} />
           <Route path="campaigns/:draftId" element={<DraftDetailPage />} />
           <Route path="clients" element={<ClientsPage />} />

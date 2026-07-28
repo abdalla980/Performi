@@ -35,6 +35,7 @@ describe('NewBriefPage', () => {
       guardrailFlagCount: 0,
       hasBlockingFlags: false,
       createdAt: '2026-07-09T00:00:00Z',
+      launches: [],
     }
     const generated: GenerateResult = {
       id: draft.id,
@@ -95,6 +96,7 @@ describe('NewBriefPage', () => {
       guardrailFlagCount: 0,
       hasBlockingFlags: false,
       createdAt: '2026-07-09T00:00:00Z',
+      launches: [],
     }
     const submitBriefsBatch = vi.fn().mockResolvedValue([draft])
     const generateDraft = vi.fn().mockResolvedValue({

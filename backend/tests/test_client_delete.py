@@ -179,3 +179,25 @@ def test_delete_client_force_overrides_launched_guard(client, db_session, monkey
     assert db_session.scalars(select(Client).where(Client.id == client_id)).first() is None
 
     main.app.dependency_overrides.clear()
+
+
+def test_delete_client_allows_when_launched_campaigns_are_archived(client, db_session, monkeypatch, tmp_path):
+    from datetime import datetime, timezone
+
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr(get_settings(), "uploads_dir", str(tmp_path))
+    agency, headers = _agency_headers(db_session, "sb-delete-7", "delete7@acme.test")
+    client_row, _brief, draft = _full_client_dataset(db_session, agency)
+    draft.status = "launched"
+    draft.archived_at = datetime.now(timezone.utc)
+    db_session.commit()
+    client_id = client_row.id
+
+    response = client.delete(f"/clients/{client_id}", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "deleted"
+
+    main.app.dependency_overrides.clear()

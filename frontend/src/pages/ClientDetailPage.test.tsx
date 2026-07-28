@@ -285,6 +285,7 @@ describe('ClientDetailPage', () => {
           guardrailFlagCount: 0,
           hasBlockingFlags: false,
           createdAt: '2026-07-09T00:00:00Z',
+          launches: [],
         },
       ],
       getClient: async () => client,
@@ -339,6 +340,7 @@ describe('ClientDetailPage', () => {
         guardrailFlagCount: 0,
         hasBlockingFlags: false,
         createdAt: '2026-07-09T00:00:00Z',
+        launches: [],
       },
       {
         id: 'draft-2',
@@ -354,6 +356,7 @@ describe('ClientDetailPage', () => {
         guardrailFlagCount: 0,
         hasBlockingFlags: false,
         createdAt: '2026-07-10T00:00:00Z',
+        launches: [],
       },
     ]
     const apiClient = createFakeApiClient({

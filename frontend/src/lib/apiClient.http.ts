@@ -150,6 +150,7 @@ interface RawDraftSummary {
   guardrail_flag_count: number
   has_blocking_flags: boolean
   created_at: string
+  launches?: RawPlatformLaunchResult[]
 }
 
 interface RawPlatformProjection {
@@ -357,6 +358,7 @@ function toDraftSummary(raw: RawDraftSummary): DraftSummary {
     guardrailFlagCount: raw.guardrail_flag_count,
     hasBlockingFlags: raw.has_blocking_flags,
     createdAt: raw.created_at,
+    launches: (raw.launches ?? []).map(toPlatformLaunchResult),
   }
 }
 
@@ -396,7 +398,6 @@ function toDraftDetail(raw: RawDraftDetail): DraftDetail {
     googlePlan: raw.google_plan ? toGooglePlan(raw.google_plan) : null,
     metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
     guardrail: raw.guardrail ? toGuardrailReport(raw.guardrail) : null,
-    launches: raw.launches.map(toPlatformLaunchResult),
     projectedMetrics: raw.projected_metrics ? toProjectedMetrics(raw.projected_metrics) : null,
   }
 }
@@ -617,6 +618,10 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
 
     async launchDraft(draftId: string): Promise<LaunchResponse> {
       return toLaunchResponse(await post<RawLaunchResponse>(`/briefs/${draftId}/launch`))
+    },
+
+    async archiveDraft(draftId: string): Promise<DraftSummary> {
+      return toDraftSummary(await post<RawDraftSummary>(`/briefs/${draftId}/archive`))
     },
 
     async listNotifications(): Promise<Notification[]> {

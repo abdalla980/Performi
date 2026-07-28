@@ -26,6 +26,7 @@ const DRAFTS: DraftSummary[] = [
     guardrailFlagCount: 0,
     hasBlockingFlags: false,
     createdAt: daysAgo(1),
+    launches: [],
   },
   {
     id: 'draft-2',
@@ -41,6 +42,7 @@ const DRAFTS: DraftSummary[] = [
     guardrailFlagCount: 0,
     hasBlockingFlags: false,
     createdAt: daysAgo(5),
+    launches: [],
   },
 ]
 

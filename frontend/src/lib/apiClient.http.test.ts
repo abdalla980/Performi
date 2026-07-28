@@ -736,6 +736,44 @@ describe('createHttpApiClient', () => {
     ])
   })
 
+  it('archiveDraft POSTs the archive route and maps the summary', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      jsonResponse({
+        id: 'draft-1',
+        brief_id: 'brief-1',
+        client_id: 'client-1',
+        client_name: 'Acme Bakery',
+        client_logo_url: null,
+        platforms: ['meta'],
+        status: 'launched',
+        business_description: 'Bakery',
+        budget_usd: 500,
+        goals: 'Traffic',
+        guardrail_flag_count: 0,
+        has_blocking_flags: false,
+        created_at: '2026-07-09T00:00:00Z',
+        launches: [
+          {
+            platform: 'meta',
+            status: 'success',
+            external_campaign_id: '987',
+            error_message: null,
+            attempted_at: '2026-07-10T00:00:00Z',
+          },
+        ],
+      }),
+    )
+    const apiClient = makeClient(fetchFn)
+
+    const result = await apiClient.archiveDraft('draft-1')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/briefs/draft-1/archive',
+      expect.objectContaining({ method: 'POST' }),
+    )
+    expect(result.launches[0].externalCampaignId).toBe('987')
+  })
+
   it('listAuditLog defaults the limit to 100 and maps entries', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse([
