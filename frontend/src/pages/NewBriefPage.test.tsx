@@ -77,6 +77,10 @@ describe('NewBriefPage', () => {
   })
 
   it('submits the extended targeting/scheduling fields and respects platform selection', async () => {
+    // Nine sequential userEvent.type() calls across many fields is genuinely borderline
+    // on the 5000ms default under full-suite parallel load (verified: reliable in
+    // isolation, intermittently timing out under load throughout this session) --
+    // give it real headroom rather than keep re-triggering a known-slow-not-broken test.
     const draft: DraftSummary = {
       id: 'draft-2',
       briefId: 'brief-2',
@@ -138,7 +142,7 @@ describe('NewBriefPage', () => {
         },
       ]),
     )
-  })
+  }, 15000)
 
   it('does not show the brief fields until a client is selected', async () => {
     const apiClient = createFakeApiClient({ listClients: async () => CLIENTS })

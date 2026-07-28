@@ -212,6 +212,49 @@ def test_launch_rejects_draft_with_no_connected_platform(client, db_session):
     response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
 
     assert response.status_code == 400
+    assert response.json()["detail"] == "This campaign hasn't been generated yet."
+
+    main.app.dependency_overrides.clear()
+
+
+def test_launch_rejects_when_client_not_linked_even_though_agency_is_connected(client, db_session):
+    """Real scenario: the agency has connected its own Google Ads Manager Account, but
+    this specific client was never demo- or real-connected -- distinct from "not
+    generated yet", and the error should say so specifically."""
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+
+    agency = Agency(
+        supabase_user_id="sb-launch-notlinked",
+        name="Acme",
+        email="launch-notlinked@acme.test",
+        google_ads_refresh_token_encrypted=b"not-real-encrypted-bytes",
+        google_ads_login_customer_id="4574433227",
+    )
+    db_session.add(agency)
+    db_session.flush()
+    client_row = Client(agency_id=agency.id, name="Client A")  # never linked to any platform
+    db_session.add(client_row)
+    db_session.flush()
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    ir = make_campaign_ir()
+    draft = CampaignDraft(
+        brief_id=brief.id,
+        status="client_approved",
+        ir_json=ir.model_dump(mode="json"),
+        google_plan_json=adapt_to_google(ir).model_dump(mode="json"),
+    )
+    db_session.add(draft)
+    db_session.commit()
+    headers = {"Authorization": f"Bearer {make_supabase_jwt(agency.supabase_user_id)}"}
+
+    response = client.post(f"/briefs/{draft.id}/launch", headers=headers)
+
+    assert response.status_code == 400
+    assert "isn't linked to a Google Ads account" in response.json()["detail"]
 
     main.app.dependency_overrides.clear()
 
