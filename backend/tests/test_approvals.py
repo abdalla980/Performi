@@ -80,3 +80,64 @@ def test_reject_succeeds_even_with_blocking_flags(client, db_session):
     assert response.status_code == 200
     assert response.json()["status"] == "rejected"
     main.app.dependency_overrides.clear()
+
+
+def test_act_as_client_approves_when_client_is_demo_only(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    draft, headers = _setup(db_session, has_blocking_flags=False)
+    draft.status = "approved"
+    draft.brief.client.google_ads_customer_id = "demo-abcd1234"
+    db_session.commit()
+
+    response = client.post(
+        f"/briefs/{draft.id}/act-as-client",
+        json={"decision": "approved"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "client_approved"
+    db_session.refresh(draft)
+    assert draft.status == "client_approved"
+
+    main.app.dependency_overrides.clear()
+
+
+def test_act_as_client_rejects_when_client_has_live_account(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    draft, headers = _setup(db_session, has_blocking_flags=False)
+    draft.status = "approved"
+    draft.brief.client.google_ads_customer_id = "123-456-7890"
+    db_session.commit()
+
+    response = client.post(
+        f"/briefs/{draft.id}/act-as-client",
+        json={"decision": "approved"},
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+    assert "client portal" in response.json()["detail"].lower()
+
+    main.app.dependency_overrides.clear()
+
+
+def test_act_as_client_rejects_when_not_awaiting_client(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    draft, headers = _setup(db_session, has_blocking_flags=False)
+
+    response = client.post(
+        f"/briefs/{draft.id}/act-as-client",
+        json={"decision": "approved"},
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()

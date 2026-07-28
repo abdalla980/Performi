@@ -76,6 +76,67 @@ describe('DraftDetailPage', () => {
     expect(screen.queryByRole('button', { name: /^launch$/i })).not.toBeInTheDocument()
   })
 
+  it('lets the agency approve as client when the client is demo-only', async () => {
+    let draft = baseDraft({ status: 'approved' })
+    const actAsClient = vi.fn(async () => {
+      draft = { ...draft, status: 'client_approved' }
+      return { status: 'client_approved' }
+    })
+    const apiClient = createFakeApiClient({
+      getBrief: async () => draft,
+      getClient: async () => ({
+        id: 'client-1',
+        name: 'Acme Bakery',
+        googleAdsCustomerId: 'demo-abcd1234',
+        metaAdAccountId: null,
+        googleConnected: true,
+        metaConnected: false,
+        logoUrl: null,
+        brandVoice: null,
+        assets: [],
+      }),
+      actAsClient,
+    })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    expect(await screen.findByRole('button', { name: /approve as client \(demo\)/i })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: /approve as client \(demo\)/i }))
+    await waitFor(() => expect(actAsClient).toHaveBeenCalledWith('draft-1', 'approved'))
+    expect(await screen.findByRole('button', { name: /^launch$/i })).toBeInTheDocument()
+  })
+
+  it('hides approve-as-client when the client has a live ad account', async () => {
+    const draft = baseDraft({ status: 'approved' })
+    const apiClient = createFakeApiClient({
+      getBrief: async () => draft,
+      getClient: async () => ({
+        id: 'client-1',
+        name: 'Acme Bakery',
+        googleAdsCustomerId: '123-456-7890',
+        metaAdAccountId: null,
+        googleConnected: true,
+        metaConnected: false,
+        logoUrl: null,
+        brandVoice: null,
+        assets: [],
+      }),
+    })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    expect(await screen.findByText(/awaiting the client's approval/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /approve as client/i })).not.toBeInTheDocument()
+  })
+
   it('shows the launch button once the client has approved, and launches', async () => {
     const draft = baseDraft({ status: 'client_approved' })
     const launch: LaunchResponse = {

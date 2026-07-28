@@ -616,6 +616,10 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
       return post(`/briefs/${draftId}/approve`, { decision: 'rejected', reviewer_note: reviewerNote ?? null })
     },
 
+    async actAsClient(draftId: string, decision: 'approved' | 'rejected'): Promise<{ status: string }> {
+      return post(`/briefs/${draftId}/act-as-client`, { decision })
+    },
+
     async launchDraft(draftId: string): Promise<LaunchResponse> {
       return toLaunchResponse(await post<RawLaunchResponse>(`/briefs/${draftId}/launch`))
     },

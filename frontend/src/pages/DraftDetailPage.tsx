@@ -60,6 +60,10 @@ export function DraftDetailPage() {
     onSuccess: invalidate,
   })
   const launchMutation = useMutation({ mutationFn: () => apiClient.launchDraft(draftId), onSuccess: invalidate })
+  const actAsClientMutation = useMutation({
+    mutationFn: (decision: 'approved' | 'rejected') => apiClient.actAsClient(draftId, decision),
+    onSuccess: invalidate,
+  })
 
   if (isPending) {
     return <p className="text-sm text-muted-foreground">Loading campaign…</p>
@@ -73,7 +77,13 @@ export function DraftDetailPage() {
     guardrailsMutation.error ??
     approveMutation.error ??
     rejectMutation.error ??
-    launchMutation.error
+    launchMutation.error ??
+    actAsClientMutation.error
+
+  const isDemoClient =
+    Boolean(client) &&
+    !(client.googleAdsCustomerId && !client.googleAdsCustomerId.startsWith('demo-')) &&
+    !(client.metaAdAccountId && !client.metaAdAccountId.startsWith('demo-'))
 
   const detailRows: Array<{ label: string; value: string; href?: string }> = [
     { label: 'Budget', value: `$${draft.budgetUsd.toFixed(0)}/mo` },
@@ -239,7 +249,31 @@ export function DraftDetailPage() {
           )}
 
           {draft.status === 'approved' && (
-            <Alert variant="success">Awaiting the client's approval before this can launch.</Alert>
+            <div className="flex flex-col gap-3">
+              <Alert variant="success">Awaiting the client&apos;s approval before this can launch.</Alert>
+              {isDemoClient && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    This client is in demo mode (no live ad account linked), so you can stand in for client review.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={() => actAsClientMutation.mutate('approved')}
+                      disabled={actAsClientMutation.isPending}
+                    >
+                      {actAsClientMutation.isPending ? 'Approving…' : 'Approve as client (demo)'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => actAsClientMutation.mutate('rejected')}
+                      disabled={actAsClientMutation.isPending}
+                    >
+                      Reject as client (demo)
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           {draft.status === 'client_rejected' && <Alert>The client rejected this campaign. Revise and regenerate.</Alert>}

@@ -710,6 +710,22 @@ describe('createHttpApiClient', () => {
     )
   })
 
+  it('actAsClient POSTs the demo client-review decision', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'client_approved' }))
+    const apiClient = makeClient(fetchFn)
+
+    const result = await apiClient.actAsClient('draft-1', 'approved')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/briefs/draft-1/act-as-client',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ decision: 'approved' }),
+      }),
+    )
+    expect(result).toEqual({ status: 'client_approved' })
+  })
+
   it('launchDraft maps the full per-platform response', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse({

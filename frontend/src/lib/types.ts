@@ -263,6 +263,7 @@ export interface ApiClient {
   runGuardrails(draftId: string): Promise<GuardrailReport>
   approveDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
   rejectDraft(draftId: string, reviewerNote?: string): Promise<{ status: string }>
+  actAsClient(draftId: string, decision: 'approved' | 'rejected'): Promise<{ status: string }>
   launchDraft(draftId: string): Promise<LaunchResponse>
   archiveDraft(draftId: string): Promise<DraftSummary>
 

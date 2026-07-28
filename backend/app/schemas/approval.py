@@ -13,3 +13,7 @@ class ApprovalRequest(BaseModel):
 
 class ApprovalResponse(BaseModel):
     status: str
+
+
+class ActAsClientRequest(BaseModel):
+    decision: Literal["approved", "rejected"]
