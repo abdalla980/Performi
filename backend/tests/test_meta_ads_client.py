@@ -62,11 +62,14 @@ def _patch_sdk(monkeypatch, recorder: _Recorder):
         recorder.record("create_campaign", params)
         return {Campaign.Field.id: "camp-1"}
 
-    def fake_create_ad_set(self, fields=None, params=None, **kwargs):
-        recorder.record("create_ad_set", params)
-        return {AdSet.Field.id: "adset-1"}
+    adset_counter = {"n": 0}
 
-    creative_ids = iter(["creative-1", "creative-2", "creative-3"])
+    def fake_create_ad_set(self, fields=None, params=None, **kwargs):
+        adset_counter["n"] += 1
+        recorder.record("create_ad_set", params)
+        return {AdSet.Field.id: f"adset-{adset_counter['n']}"}
+
+    creative_ids = iter([f"creative-{i}" for i in range(1, 20)])
 
     def fake_create_ad_creative(self, fields=None, params=None, **kwargs):
         recorder.record("create_ad_creative", params)
@@ -250,3 +253,100 @@ def test_push_raises_when_page_id_missing(monkeypatch):
         assert recorder.calls == []
     finally:
         get_settings.cache_clear()
+
+
+def _multi_ad_set_plan() -> MetaCampaignPlan:
+    creative = MetaCreative(headline="Fresh", body="Visit.", call_to_action="Learn More")
+    return _plan(
+        ad_sets=[
+            MetaAdSet(
+                name="Segment A",
+                daily_budget_cents=800,
+                targeting_description="Home bakers",
+                creatives=[creative],
+            ),
+            MetaAdSet(
+                name="Segment B",
+                daily_budget_cents=800,
+                targeting_description="Office workers",
+                creatives=[creative],
+            ),
+        ]
+    )
+
+
+def test_push_registers_split_test_for_multi_ad_set_with_business_id(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+    from facebook_business.adobjects.business import Business
+
+    captured = {}
+
+    def fake_create_ad_study(self, fields=None, params=None, **kwargs):
+        captured["params"] = params
+        return {"id": "study-1"}
+
+    monkeypatch.setattr(Business, "create_ad_study", fake_create_ad_study)
+
+    client = RealMetaAdsPushClient()
+    result = client.push(_multi_ad_set_plan(), access_token="tok", ad_account_id="act_1", business_id="biz-1")
+
+    assert result == "camp-1"
+    assert client.last_ad_study_id == "study-1"
+    assert captured["params"]["type"] == "SPLIT_TEST"
+    assert len(captured["params"]["cells"]) == 2
+    assert captured["params"]["cells"][0]["adsets"] == ["adset-1"]
+    assert captured["params"]["cells"][1]["adsets"] == ["adset-2"]
+    assert captured["params"]["cells"][0]["treatment_percentage"] == 50
+
+
+def test_push_skips_split_test_without_business_id(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+    from facebook_business.adobjects.business import Business
+
+    called = {"n": 0}
+    monkeypatch.setattr(Business, "create_ad_study", lambda *a, **k: called.__setitem__("n", called["n"] + 1) or {"id": "x"})
+
+    client = RealMetaAdsPushClient()
+    client.push(_multi_ad_set_plan(), access_token="tok", ad_account_id="act_1", business_id=None)
+
+    assert client.last_ad_study_id is None
+    assert called["n"] == 0
+
+
+def test_push_skips_split_test_with_single_ad_set(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+    from facebook_business.adobjects.business import Business
+
+    called = {"n": 0}
+    monkeypatch.setattr(Business, "create_ad_study", lambda *a, **k: called.__setitem__("n", called["n"] + 1) or {"id": "x"})
+
+    client = RealMetaAdsPushClient()
+    client.push(_plan(), access_token="tok", ad_account_id="act_1", business_id="biz-1")
+
+    assert client.last_ad_study_id is None
+    assert called["n"] == 0
+
+
+def test_push_survives_split_test_registration_failure(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+    from facebook_business.adobjects.business import Business
+
+    def boom(self, fields=None, params=None, **kwargs):
+        raise RuntimeError("Meta split test rejected")
+
+    monkeypatch.setattr(Business, "create_ad_study", boom)
+
+    client = RealMetaAdsPushClient()
+    result = client.push(_multi_ad_set_plan(), access_token="tok", ad_account_id="act_1", business_id="biz-1")
+
+    assert result == "camp-1"
+    assert client.last_ad_study_id is None
+    assert any(name == "create_campaign" for name, _ in recorder.calls)

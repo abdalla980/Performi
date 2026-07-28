@@ -8,15 +8,28 @@ from app.services.meta_interest_resolver import resolve_interests
 
 
 class MetaAdsPushPort(Protocol):
-    def push(self, plan: MetaCampaignPlan, access_token: str, ad_account_id: str) -> str: ...
+    def push(
+        self,
+        plan: MetaCampaignPlan,
+        access_token: str,
+        ad_account_id: str,
+        business_id: str | None = None,
+    ) -> str: ...
 
 
 class FakeMetaAdsPushClient:
     def __init__(self, external_id: str = "fake-meta-campaign", raise_error: Exception | None = None):
         self._external_id = external_id
         self._raise_error = raise_error
+        self.last_ad_study_id: str | None = None
 
-    def push(self, plan: MetaCampaignPlan, access_token: str, ad_account_id: str) -> str:
+    def push(
+        self,
+        plan: MetaCampaignPlan,
+        access_token: str,
+        ad_account_id: str,
+        business_id: str | None = None,
+    ) -> str:
         if self._raise_error is not None:
             raise self._raise_error
         return self._external_id
@@ -39,6 +52,45 @@ def _build_targeting(ad_set, access_token: str, http_client: httpx.Client | None
     return targeting
 
 
+def _register_split_test(business_id: str, campaign_name: str, ad_set_ids: list[str]) -> str | None:
+    """Best-effort: a failure here does not fail the launch — the campaign and ad
+    sets are already live (paused) at this point regardless.
+
+    OPEN QUESTION (sandbox before production): campaigns/ad sets are created PAUSED
+    by design. It is not verified whether Meta's split-test scheduling (start_time)
+    auto-activates the referenced ad sets when the test window opens. If it does,
+    auto-registering would silently bypass the paused-by-default safety gate.
+    Fallback if confirmed unsafe: stop auto-registering and surface an
+    agency-triggered "Set up split test" action instead.
+    """
+    if len(ad_set_ids) < 2 or not business_id:
+        return None
+    import time
+
+    from facebook_business.adobjects.business import Business
+
+    share = round(100 / len(ad_set_ids))
+    cells = [
+        {"name": f"Group {chr(65 + i)}", "treatment_percentage": share, "adsets": [ad_set_id]}
+        for i, ad_set_id in enumerate(ad_set_ids)
+    ]
+    now = int(time.time())
+    try:
+        study = Business(business_id).create_ad_study(
+            params={
+                "name": campaign_name,
+                "description": f"Auto-generated audience split test for {campaign_name}",
+                "type": "SPLIT_TEST",
+                "cells": cells,
+                "start_time": now,
+                "end_time": now + 14 * 86400,  # 14-day default window
+            }
+        )
+        return study.get("id")
+    except Exception:
+        return None
+
+
 class RealMetaAdsPushClient:
     """Thin wrapper around the official facebook-business SDK. Only exercised against a
     real Meta sandbox ad account, never by the fast unit test suite.
@@ -48,7 +100,16 @@ class RealMetaAdsPushClient:
     and neither is configured anywhere in this app yet.
     """
 
-    def push(self, plan: MetaCampaignPlan, access_token: str, ad_account_id: str) -> str:
+    def __init__(self) -> None:
+        self.last_ad_study_id: str | None = None
+
+    def push(
+        self,
+        plan: MetaCampaignPlan,
+        access_token: str,
+        ad_account_id: str,
+        business_id: str | None = None,
+    ) -> str:
         from facebook_business.adobjects.adaccount import AdAccount
         from facebook_business.adobjects.adcreative import AdCreative
         from facebook_business.adobjects.adset import AdSet
@@ -90,6 +151,7 @@ class RealMetaAdsPushClient:
             }
         )
         campaign_id = campaign[Campaign.Field.id]
+        ad_set_ids: list[str] = []
 
         with httpx.Client(timeout=15.0) as http_client:
             for ad_set in plan.ad_sets:
@@ -107,6 +169,7 @@ class RealMetaAdsPushClient:
                     }
                 )
                 adset_id = adset[AdSet.Field.id]
+                ad_set_ids.append(adset_id)
 
                 for index, creative_spec in enumerate(ad_set.creatives):
                     creative = account.create_ad_creative(
@@ -137,6 +200,9 @@ class RealMetaAdsPushClient:
                         }
                     )
 
+        self.last_ad_study_id = (
+            _register_split_test(business_id, plan.campaign_name, ad_set_ids) if business_id else None
+        )
         return campaign_id
 
 
@@ -146,9 +212,22 @@ class DemoAwareMetaAdsPushClient:
     f"demo-{client_id[:8]}"). META_APP_ID/SECRET being real and configured does not
     mean a given client's token is — this check catches that case."""
 
-    def push(self, plan: MetaCampaignPlan, access_token: str, ad_account_id: str) -> str:
+    def __init__(self) -> None:
+        self.last_ad_study_id: str | None = None
+
+    def push(
+        self,
+        plan: MetaCampaignPlan,
+        access_token: str,
+        ad_account_id: str,
+        business_id: str | None = None,
+    ) -> str:
         if ad_account_id.startswith("demo-"):
+            self.last_ad_study_id = None
             return FakeMetaAdsPushClient(external_id=f"demo-meta-{ad_account_id}").push(
-                plan, access_token, ad_account_id
+                plan, access_token, ad_account_id, business_id=business_id
             )
-        return RealMetaAdsPushClient().push(plan, access_token, ad_account_id)
+        real = RealMetaAdsPushClient()
+        result = real.push(plan, access_token, ad_account_id, business_id=business_id)
+        self.last_ad_study_id = real.last_ad_study_id
+        return result

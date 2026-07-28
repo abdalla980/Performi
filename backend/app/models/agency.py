@@ -20,5 +20,6 @@ class Agency(Base):
     google_ads_refresh_token_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, default=None)
     google_ads_login_customer_id: Mapped[str | None] = mapped_column(String(32), default=None)
     meta_access_token_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary, default=None)
+    meta_business_id: Mapped[str | None] = mapped_column(String(64), default=None)
 
     clients: Mapped[list["Client"]] = relationship(back_populates="agency")

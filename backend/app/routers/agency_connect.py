@@ -9,7 +9,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.encryption import encrypt_token
 from app.models.agency import Agency
-from app.schemas.agency_connect import GoogleManagerAccountRequest
+from app.schemas.agency_connect import GoogleManagerAccountRequest, MetaBusinessAccountRequest
 from app.schemas.oauth import OAuthAuthorizeUrlResponse
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
@@ -113,3 +113,26 @@ def set_google_manager_account(
         payload={"login_customer_id": body.login_customer_id},
     )
     return {"status": "ok", "login_customer_id": body.login_customer_id}
+
+
+@router.put("/meta/business-account")
+def set_meta_business_account(
+    body: MetaBusinessAccountRequest,
+    db: Session = Depends(get_db),
+    agency: Agency = Depends(get_current_agency),
+) -> dict[str, str]:
+    if agency.meta_access_token_encrypted is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Connect your Meta Business Manager in Settings first",
+        )
+    agency.meta_business_id = body.business_id
+    db.commit()
+    record_audit_event(
+        db,
+        agency_id=agency.id,
+        client_id=None,
+        event_type="agency.meta_business_account_set",
+        payload={"business_id": body.business_id},
+    )
+    return {"status": "ok", "business_id": body.business_id}

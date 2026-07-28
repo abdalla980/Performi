@@ -157,6 +157,50 @@ def test_set_google_manager_account_after_oauth(client, db_session, monkeypatch)
     main.app.dependency_overrides.clear()
 
 
+def test_set_meta_business_account_requires_prior_oauth(client, db_session):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    _, headers = _agency_headers(db_session, "sb-oauth-biz-1", "biz1@acme.test")
+
+    response = client.put(
+        "/agency/meta/business-account",
+        json={"business_id": "999888777"},
+        headers=headers,
+    )
+
+    assert response.status_code == 409
+
+    main.app.dependency_overrides.clear()
+
+
+def test_set_meta_business_account_after_oauth(client, db_session, monkeypatch):
+    from app import main
+    from app.routers import agency_connect as agency_router
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    agency, headers = _agency_headers(db_session, "sb-oauth-biz-2", "biz2@acme.test")
+    monkeypatch.setattr(
+        agency_router.meta_oauth,
+        "exchange_code_for_tokens",
+        lambda code, http_client: MetaTokenResponse(access_token="meta-at"),
+    )
+    client.get(f"/agency/meta/oauth/callback?code=auth-code&state={agency.id}", follow_redirects=False)
+
+    response = client.put(
+        "/agency/meta/business-account",
+        json={"business_id": "999888777"},
+        headers=headers,
+    )
+
+    assert response.status_code == 200
+    assert response.json()["business_id"] == "999888777"
+    db_session.refresh(agency)
+    assert agency.meta_business_id == "999888777"
+
+    main.app.dependency_overrides.clear()
+
+
 def test_set_google_ad_account_requires_agency_connect(client, db_session):
     from app import main
 

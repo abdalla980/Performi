@@ -9,6 +9,7 @@ from app.models.brief import CampaignDraft
 from app.models.launch import LaunchRecord
 from app.schemas.google_plan import GoogleCampaignPlan
 from app.schemas.meta_plan import MetaCampaignPlan
+from app.services.audit import record_audit_event
 from app.services.google_ads_client import GoogleAdsPushPort
 from app.services.meta_ads_client import MetaAdsPushPort
 
@@ -71,8 +72,10 @@ def push_draft_with_clients(
         plan = MetaCampaignPlan.model_validate(draft.meta_plan_json)
         access_token = decrypt_token(agency.meta_access_token_encrypted)
         ad_account_id = client_row.meta_ad_account_id
+        business_id = agency.meta_business_id
         external_id, error = _push_with_retry(
-            lambda: meta_client.push(plan, access_token, ad_account_id), sleep_fn
+            lambda: meta_client.push(plan, access_token, ad_account_id, business_id=business_id),
+            sleep_fn,
         )
         records.append(
             LaunchRecord(
@@ -89,4 +92,15 @@ def push_draft_with_clients(
     db.commit()
     for record in records:
         db.refresh(record)
+
+    study_id = getattr(meta_client, "last_ad_study_id", None)
+    if study_id and any(r.platform == "meta" and r.status == "success" for r in records):
+        record_audit_event(
+            db,
+            agency_id=agency.id,
+            client_id=client_row.id,
+            event_type="draft.meta_split_test_registered",
+            payload={"draft_id": str(draft.id), "ad_study_id": study_id},
+        )
+
     return records

@@ -20,6 +20,7 @@ export function createFakeApiClient(overrides: Partial<ApiClient> = {}): ApiClie
     getAgencyGoogleOAuthUrl: notImplemented('getAgencyGoogleOAuthUrl'),
     getAgencyMetaOAuthUrl: notImplemented('getAgencyMetaOAuthUrl'),
     setGoogleManagerAccount: notImplemented('setGoogleManagerAccount'),
+    setMetaBusinessAccount: notImplemented('setMetaBusinessAccount'),
     setGoogleAdAccount: notImplemented('setGoogleAdAccount'),
     setMetaAdAccount: notImplemented('setMetaAdAccount'),
     uploadClientAsset: notImplemented('uploadClientAsset'),

@@ -25,6 +25,7 @@ export function SettingsPage() {
   const { data: configStatus } = useQuery({ queryKey: ['config-status'], queryFn: () => apiClient.getConfigStatus() })
 
   const [loginCustomerId, setLoginCustomerId] = useState('')
+  const [metaBusinessId, setMetaBusinessId] = useState('')
 
   const connectGoogleMutation = useMutation({
     mutationFn: () => apiClient.getAgencyGoogleOAuthUrl(),
@@ -36,6 +37,12 @@ export function SettingsPage() {
   })
   const setManagerMutation = useMutation({
     mutationFn: () => apiClient.setGoogleManagerAccount(loginCustomerId.trim()),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['config-status'] })
+    },
+  })
+  const setMetaBusinessMutation = useMutation({
+    mutationFn: () => apiClient.setMetaBusinessAccount(metaBusinessId.trim()),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['config-status'] })
     },
@@ -124,6 +131,34 @@ export function SettingsPage() {
                 {connectMetaMutation.isPending ? 'Redirecting…' : 'Connect Meta Business Manager'}
               </Button>
               {configStatus?.metaConfigured ? <Badge variant="success">Connected</Badge> : null}
+            </div>
+            <div className="mt-3 flex flex-col gap-2">
+              <Label htmlFor="meta-business-id">Business Manager ID</Label>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="meta-business-id"
+                  placeholder="1234567890"
+                  value={metaBusinessId}
+                  onChange={(event) => setMetaBusinessId(event.target.value)}
+                  className="h-9 w-44"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setMetaBusinessMutation.mutate()}
+                  disabled={setMetaBusinessMutation.isPending || !metaBusinessId.trim()}
+                >
+                  {setMetaBusinessMutation.isPending ? 'Saving…' : 'Save Business ID'}
+                </Button>
+              </div>
+              {setMetaBusinessMutation.isError && (
+                <Alert>
+                  {setMetaBusinessMutation.error instanceof Error
+                    ? setMetaBusinessMutation.error.message
+                    : 'Failed to save Business Manager ID.'}
+                </Alert>
+              )}
+              {setMetaBusinessMutation.isSuccess && <Alert variant="success">Business Manager ID saved.</Alert>}
             </div>
           </div>
         </CardContent>

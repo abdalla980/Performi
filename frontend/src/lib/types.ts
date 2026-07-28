@@ -249,6 +249,7 @@ export interface ApiClient {
   getAgencyGoogleOAuthUrl(): Promise<string>
   getAgencyMetaOAuthUrl(): Promise<string>
   setGoogleManagerAccount(loginCustomerId: string): Promise<void>
+  setMetaBusinessAccount(businessId: string): Promise<void>
   setGoogleAdAccount(clientId: string, customerId: string): Promise<Client>
   setMetaAdAccount(clientId: string, adAccountId: string): Promise<Client>
   uploadClientAsset(clientId: string, kind: 'logo' | 'image', file: File): Promise<ClientAsset>

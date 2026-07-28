@@ -532,6 +532,10 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
       await put('/agency/google/manager-account', { login_customer_id: loginCustomerId })
     },
 
+    async setMetaBusinessAccount(businessId: string): Promise<void> {
+      await put('/agency/meta/business-account', { business_id: businessId })
+    },
+
     async setGoogleAdAccount(clientId: string, customerId: string): Promise<Client> {
       return toClient(await put<RawClient>(`/clients/${clientId}/google/ad-account`, { customer_id: customerId }))
     },

@@ -256,6 +256,21 @@ describe('createHttpApiClient', () => {
     )
   })
 
+  it('setMetaBusinessAccount PUTs the Business Manager ID', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'ok', business_id: '999' }))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.setMetaBusinessAccount('999')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/agency/meta/business-account',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ business_id: '999' }),
+      }),
+    )
+  })
+
   it('setGoogleAdAccount and setMetaAdAccount PUT to the ad-account routes', async () => {
     const fetchFn = vi
       .fn()
