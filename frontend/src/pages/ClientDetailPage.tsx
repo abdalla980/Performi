@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CheckCircle2, ListChecks, X } from 'lucide-react'
+import { CheckCircle2, ExternalLink, ListChecks, X } from 'lucide-react'
 import { useApiClient } from '../lib/apiClientContext'
+import { buildPlatformManageUrl, PLATFORM_LABEL } from '../lib/platformLinks'
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../lib/statusDisplay'
 import { Alert } from '../components/ui/alert'
 import { Badge } from '../components/ui/badge'
@@ -54,6 +55,12 @@ export function ClientDetailPage() {
   const [requiredDisclaimers, setRequiredDisclaimers] = useState('')
   const [approvedOffers, setApprovedOffers] = useState('')
   const [sitelinks, setSitelinks] = useState<Array<{ text: string; url: string; description: string }>>([])
+  const [showLaunchedWarning, setShowLaunchedWarning] = useState(false)
+
+  const launchedCampaigns = useMemo(
+    () => (campaigns ?? []).filter((c) => c.status === 'launched'),
+    [campaigns],
+  )
 
   useEffect(() => {
     if (client?.brandVoice) {
@@ -74,7 +81,7 @@ export function ClientDetailPage() {
   const invalidateClient = () => queryClient.invalidateQueries({ queryKey: clientQueryKey })
 
   const deleteClientMutation = useMutation({
-    mutationFn: () => apiClient.deleteClient(clientId),
+    mutationFn: (options?: { force?: boolean }) => apiClient.deleteClient(clientId, options),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['clients'] })
       navigate('/clients')
@@ -152,14 +159,73 @@ export function ClientDetailPage() {
           className="text-destructive hover:bg-destructive-muted"
           disabled={deleteClientMutation.isPending}
           onClick={() => {
-            if (window.confirm(`Delete ${client.name}? This removes all of their briefs, campaigns, and history.`)) {
-              deleteClientMutation.mutate()
+            if (launchedCampaigns.length === 0) {
+              if (
+                window.confirm(
+                  `Delete ${client.name}? This removes all of their briefs, campaigns, and history.`,
+                )
+              ) {
+                deleteClientMutation.mutate({ force: false })
+              }
+              return
             }
+            setShowLaunchedWarning(true)
           }}
         >
           {deleteClientMutation.isPending ? 'Deleting…' : 'Delete client'}
         </Button>
       </div>
+
+      {showLaunchedWarning && (
+        <Alert>
+          <div className="flex flex-col gap-3">
+            <p>
+              {launchedCampaigns.length} campaign{launchedCampaigns.length === 1 ? '' : 's'} for this client{' '}
+              {launchedCampaigns.length === 1 ? 'is' : 'are'} still marked launched. Deleting will not pause them —
+              they&apos;ll keep running until you stop them in the platform itself.
+            </p>
+            <ul className="flex flex-col gap-2">
+              {launchedCampaigns.map((campaign) => (
+                <li key={campaign.id} className="flex flex-wrap items-center gap-2 text-sm">
+                  <Link to={`/campaigns/${campaign.id}`} className="font-medium text-foreground hover:underline">
+                    {campaign.businessDescription}
+                  </Link>
+                  {(['google', 'meta'] as const)
+                    .filter((platform) => campaign.platforms.includes(platform))
+                    .map((platform) => (
+                      <a
+                        key={platform}
+                        href={buildPlatformManageUrl(platform, {
+                          metaAdAccountId: client.metaAdAccountId,
+                        })}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        Manage in {PLATFORM_LABEL[platform]}
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    ))}
+                </li>
+              ))}
+            </ul>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="text-destructive hover:bg-destructive-muted"
+                disabled={deleteClientMutation.isPending}
+                onClick={() => deleteClientMutation.mutate({ force: true })}
+              >
+                Delete anyway
+              </Button>
+              <Button type="button" variant="ghost" onClick={() => setShowLaunchedWarning(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Alert>
+      )}
 
       {deleteClientMutation.isError && (
         <Alert>

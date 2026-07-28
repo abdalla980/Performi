@@ -154,6 +154,18 @@ describe('createHttpApiClient', () => {
     )
   })
 
+  it('deleteClient appends force=true when requested', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'deleted' }))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.deleteClient('client-1', { force: true })
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/clients/client-1?force=true',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+  })
+
   it('setBrandVoice PUTs snake_case fields', async () => {
     const fetchFn = vi.fn().mockResolvedValue(
       jsonResponse({

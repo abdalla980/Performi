@@ -8,7 +8,9 @@ from app.db import get_db
 from app.encryption import encrypt_token
 from app.models.agency import Agency
 from app.models.brand_voice import BrandVoiceProfile
+from app.models.brief import Brief, CampaignDraft
 from app.models.client import Client
+from app.models.launch import LaunchRecord
 from app.schemas.brand_voice import BrandVoiceProfileRequest, BrandVoiceProfileResponse
 from app.routers.client_assets import client_logo_url, to_client_asset_response
 from app.schemas.client import (
@@ -30,6 +32,30 @@ def _get_owned_client(db: Session, client_id: uuid.UUID, agency: Agency) -> Clie
     if client is None or client.agency_id != agency.id:
         raise HTTPException(status_code=404, detail="Client not found")
     return client
+
+
+def _find_launched_campaigns(db: Session, client_id: uuid.UUID) -> list[dict]:
+    """Drafts with status == 'launched' for this client, with each platform's
+    external_campaign_id so the frontend can build a direct link to go handle it."""
+    drafts = db.scalars(
+        select(CampaignDraft)
+        .join(Brief, CampaignDraft.brief_id == Brief.id)
+        .where(Brief.client_id == client_id, CampaignDraft.status == "launched")
+    ).all()
+    result = []
+    for draft in drafts:
+        launches = db.scalars(select(LaunchRecord).where(LaunchRecord.campaign_draft_id == draft.id)).all()
+        result.append(
+            {
+                "draft_id": str(draft.id),
+                "launches": [
+                    {"platform": launch.platform, "external_campaign_id": launch.external_campaign_id}
+                    for launch in launches
+                    if launch.status == "success"
+                ],
+            }
+        )
+    return result
 
 
 def _client_response(client: Client) -> ClientResponse:
@@ -85,10 +111,26 @@ def get_client_detail(
 @router.delete("/{client_id}")
 def delete_client(
     client_id: uuid.UUID,
+    force: bool = False,
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ) -> dict[str, str]:
     client = _get_owned_client(db, client_id, agency)
+
+    if not force:
+        launched = _find_launched_campaigns(db, client_id)
+        if launched:
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": (
+                        "This client has campaigns still marked launched. "
+                        "Pause them in the native platform before deleting, or delete anyway."
+                    ),
+                    "launched_campaigns": launched,
+                },
+            )
+
     client_name = client.name
     delete_client_cascade(db, client)
 

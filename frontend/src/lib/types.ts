@@ -242,7 +242,7 @@ export interface ApiClient {
   listClients(): Promise<Client[]>
   createClient(name: string): Promise<Client>
   getClient(clientId: string): Promise<ClientDetail>
-  deleteClient(clientId: string): Promise<void>
+  deleteClient(clientId: string, options?: { force?: boolean }): Promise<void>
   setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile>
   connectGoogleDemo(clientId: string): Promise<void>
   connectMetaDemo(clientId: string): Promise<void>

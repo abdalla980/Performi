@@ -3,8 +3,8 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, ExternalLink, Share2, XCircle } from 'lucide-react'
 import { useApiClient } from '../lib/apiClientContext'
+import { buildPlatformManageUrl, PLATFORM_LABEL } from '../lib/platformLinks'
 import { STATUS_BADGE_VARIANT, STATUS_LABELS } from '../lib/statusDisplay'
-import type { Platform } from '../lib/types'
 import { cn } from '../lib/utils'
 import { GooglePlanView, MetaPlanView, ProjectedMetricsSection } from '../components/CampaignPlanViews'
 import { StatusStepper } from '../components/StatusStepper'
@@ -15,16 +15,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Label } from '../components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Textarea } from '../components/ui/textarea'
-
-// Neither platform officially supports deep-linking to one specific campaign by ID
-// (confirmed: Google's own AdWords API forums say ocid-based deep links aren't
-// supported), so these go to the account-level dashboard rather than a link that
-// might silently 404 or land somewhere wrong.
-const PLATFORM_DASHBOARD_URL: Record<Platform, string> = {
-  google: 'https://ads.google.com/aw/overview',
-  meta: 'https://adsmanager.facebook.com/adsmanager/',
-}
-const PLATFORM_LABEL: Record<Platform, string> = { google: 'Google Ads', meta: 'Meta Ads Manager' }
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
@@ -46,6 +36,12 @@ export function DraftDetailPage() {
     queryKey: draftQueryKey,
     queryFn: () => apiClient.getBrief(draftId),
     enabled: Boolean(draftId),
+  })
+
+  const { data: client } = useQuery({
+    queryKey: ['clients', draft?.clientId],
+    queryFn: () => apiClient.getClient(draft!.clientId),
+    enabled: Boolean(draft?.clientId),
   })
 
   const invalidate = () => {
@@ -286,7 +282,10 @@ export function DraftDetailPage() {
                             </p>
                           ) : (
                             <a
-                              href={PLATFORM_DASHBOARD_URL[launch.platform]}
+                              href={buildPlatformManageUrl(launch.platform, {
+                                externalCampaignId: launch.externalCampaignId,
+                                metaAdAccountId: client?.metaAdAccountId,
+                              })}
                               target="_blank"
                               rel="noreferrer"
                               className="ml-6 inline-flex w-fit items-center gap-1 text-sm font-medium text-primary hover:underline"

@@ -490,8 +490,9 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
       return toClientDetail(await get<RawClientDetail>(`/clients/${clientId}`))
     },
 
-    async deleteClient(clientId: string): Promise<void> {
-      await request('DELETE', `/clients/${clientId}`)
+    async deleteClient(clientId: string, options?: { force?: boolean }): Promise<void> {
+      const query = options?.force ? '?force=true' : ''
+      await request('DELETE', `/clients/${clientId}${query}`)
     },
 
     async setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile> {

@@ -123,3 +123,59 @@ def test_delete_client_404_for_unowned_client(client, db_session):
     assert response.status_code == 404
 
     main.app.dependency_overrides.clear()
+
+
+def test_delete_client_409_when_launched_campaigns_exist(client, db_session, monkeypatch, tmp_path):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr(get_settings(), "uploads_dir", str(tmp_path))
+    agency, headers = _agency_headers(db_session, "sb-delete-5", "delete5@acme.test")
+    client_row, _brief, draft = _full_client_dataset(db_session, agency)
+    draft.status = "launched"
+    db_session.add(
+        LaunchRecord(
+            campaign_draft_id=draft.id,
+            platform="meta",
+            status="success",
+            external_campaign_id="987654321",
+        )
+    )
+    db_session.commit()
+    client_id, draft_id = client_row.id, draft.id
+
+    response = client.delete(f"/clients/{client_id}", headers=headers)
+
+    assert response.status_code == 409
+    detail = response.json()["detail"]
+    assert "launched" in detail["message"].lower()
+    assert detail["launched_campaigns"] == [
+        {
+            "draft_id": str(draft_id),
+            "launches": [{"platform": "meta", "external_campaign_id": "987654321"}],
+        }
+    ]
+    assert db_session.get(Client, client_id) is not None
+
+    main.app.dependency_overrides.clear()
+
+
+def test_delete_client_force_overrides_launched_guard(client, db_session, monkeypatch, tmp_path):
+    from app import main
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr(get_settings(), "uploads_dir", str(tmp_path))
+    agency, headers = _agency_headers(db_session, "sb-delete-6", "delete6@acme.test")
+    client_row, _brief, draft = _full_client_dataset(db_session, agency)
+    draft.status = "launched"
+    db_session.commit()
+    client_id = client_row.id
+
+    response = client.delete(f"/clients/{client_id}?force=true", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "deleted"
+    db_session.expunge_all()
+    assert db_session.scalars(select(Client).where(Client.id == client_id)).first() is None
+
+    main.app.dependency_overrides.clear()

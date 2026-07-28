@@ -251,7 +251,63 @@ describe('ClientDetailPage', () => {
 
     confirmSpy.mockReturnValueOnce(true)
     await userEvent.click(screen.getByRole('button', { name: /delete client/i }))
-    await waitFor(() => expect(deleteClient).toHaveBeenCalledWith('client-1'))
+    await waitFor(() => expect(deleteClient).toHaveBeenCalledWith('client-1', { force: false }))
+
+    confirmSpy.mockRestore()
+  })
+
+  it('shows a launched-campaign warning panel instead of confirm when deleting', async () => {
+    const client: ClientDetail = {
+      id: 'client-1',
+      name: 'Acme Bakery',
+      googleAdsCustomerId: null,
+      metaAdAccountId: 'act_111',
+      googleConnected: false,
+      metaConnected: true,
+      logoUrl: null,
+      brandVoice: null,
+      assets: [],
+    }
+    const deleteClient = vi.fn(async () => {})
+    const apiClient = createFakeApiClient({
+      listBriefs: async () => [
+        {
+          id: 'draft-1',
+          briefId: 'brief-1',
+          clientId: 'client-1',
+          clientName: 'Acme Bakery',
+          clientLogoUrl: null,
+          platforms: ['meta'],
+          status: 'launched',
+          businessDescription: 'Bakery summer promo',
+          budgetUsd: 500,
+          goals: 'Traffic',
+          guardrailFlagCount: 0,
+          hasBlockingFlags: false,
+          createdAt: '2026-07-09T00:00:00Z',
+        },
+      ],
+      getClient: async () => client,
+      deleteClient,
+      getConfigStatus: async () => ({ anthropicConfigured: false, googleAdsConfigured: false, metaConfigured: true }),
+    })
+    const confirmSpy = vi.spyOn(window, 'confirm')
+
+    renderWithProviders(<ClientDetailPage />, {
+      apiClient,
+      path: '/clients/:clientId',
+      initialEntries: ['/clients/client-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    await userEvent.click(screen.getByRole('button', { name: /delete client/i }))
+
+    expect(confirmSpy).not.toHaveBeenCalled()
+    expect(await screen.findByText(/still marked launched/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /manage in meta ads manager/i })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: /delete anyway/i }))
+    await waitFor(() => expect(deleteClient).toHaveBeenCalledWith('client-1', { force: true }))
 
     confirmSpy.mockRestore()
   })

@@ -187,6 +187,50 @@ describe('DraftDetailPage', () => {
     expect(screen.queryByText(/simulated/i)).not.toBeInTheDocument()
   })
 
+  it('deep-links Meta launches to the specific campaign when the ad account is known', async () => {
+    const draft = baseDraft({
+      status: 'launched',
+      platforms: ['meta'],
+      launches: [
+        {
+          platform: 'meta',
+          status: 'success',
+          externalCampaignId: '987654321',
+          errorMessage: null,
+          attemptedAt: '2026-07-18T12:00:00Z',
+        },
+      ],
+    })
+    const apiClient = createFakeApiClient({
+      getBrief: async () => draft,
+      getClient: async () => ({
+        id: 'client-1',
+        name: 'Acme Bakery',
+        googleAdsCustomerId: null,
+        metaAdAccountId: 'act_111',
+        googleConnected: false,
+        metaConnected: true,
+        logoUrl: null,
+        brandVoice: null,
+        assets: [],
+      }),
+    })
+
+    renderWithProviders(<DraftDetailPage />, {
+      apiClient,
+      path: '/campaigns/:draftId',
+      initialEntries: ['/campaigns/draft-1'],
+    })
+
+    await screen.findByText('Acme Bakery')
+    await waitFor(() => {
+      expect(screen.getByRole('link', { name: /view in meta ads manager/i })).toHaveAttribute(
+        'href',
+        'https://business.facebook.com/adsmanager/manage/campaigns?act=act_111&selected_campaign_ids=987654321',
+      )
+    })
+  })
+
   it('disables approve when the guardrail report has blocking flags', async () => {
     const draft = baseDraft({
       status: 'guardrail_checked',
