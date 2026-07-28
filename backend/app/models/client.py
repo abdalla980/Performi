@@ -26,3 +26,15 @@ class Client(Base):
         back_populates="client", uselist=False
     )
     assets: Mapped[list["ClientAsset"]] = relationship(back_populates="client", order_by="ClientAsset.created_at")
+
+    @property
+    def has_real_platform_connection(self) -> bool:
+        """True once this client is linked to a real (non-demo) Google Ads or Meta
+        account -- i.e. a real launch is actually possible for them. Used to gate real
+        LLM calls: generating/reviewing with real AI is pointless spend for a client
+        that can only ever demo-launch anyway."""
+
+        def _is_real(account_id: str | None) -> bool:
+            return bool(account_id) and not account_id.startswith("demo-")
+
+        return _is_real(self.google_ads_customer_id) or _is_real(self.meta_ad_account_id)

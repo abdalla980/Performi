@@ -32,8 +32,12 @@ def generate_draft(
         raise HTTPException(status_code=404, detail="Draft not found")
 
     settings = get_settings()
-    brand_voice = draft.brief.client.brand_voice_profile
-    if settings.anthropic_api_key:
+    client = draft.brief.client
+    brand_voice = client.brand_voice_profile
+    # Real AI is only worth spending on a client that can actually launch for real --
+    # otherwise fall back to the deterministic demo generator, same as when no
+    # ANTHROPIC_API_KEY is configured at all.
+    if settings.anthropic_api_key and client.has_real_platform_connection:
         mode: Literal["live", "demo"] = "live"
         anthropic_client = Anthropic(api_key=settings.anthropic_api_key)
         ir = generate_campaign_ir(draft.brief, anthropic_client=anthropic_client, brand_voice=brand_voice)

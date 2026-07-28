@@ -33,7 +33,10 @@ def test_generate_draft_returns_google_plan(client, db_session, monkeypatch):
     agency = Agency(supabase_user_id="sb-gen-1", name="Acme", email="gen@acme.test")
     db_session.add(agency)
     db_session.flush()
-    client_row = Client(agency_id=agency.id, name="Client A")
+    # A real (non-demo) platform connection is required for live mode -- a client with
+    # none falls back to demo regardless of ANTHROPIC_API_KEY (see the
+    # falls_back_to_demo_when_client_has_no_real_connection test below).
+    client_row = Client(agency_id=agency.id, name="Client A", google_ads_customer_id="1234567890")
     db_session.add(client_row)
     db_session.flush()
     brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
@@ -54,6 +57,78 @@ def test_generate_draft_returns_google_plan(client, db_session, monkeypatch):
     assert body["meta_plan"]["campaign_name"] == "Austin Bakery Foot Traffic"
     assert body["meta_plan"]["ad_sets"][0]["daily_budget_cents"] == 1650
     assert body["mode"] == "live"
+
+    get_settings.cache_clear()
+    main.app.dependency_overrides.clear()
+
+
+def test_generate_draft_falls_back_to_demo_when_client_has_no_real_connection(client, db_session, monkeypatch):
+    """ANTHROPIC_API_KEY is configured, but this client has no real platform
+    connection (never connected, or only demo-connected) -- real AI should not be
+    spent on a client that can't actually launch for real yet."""
+    from app import main
+    from app.config import get_settings
+    from app.routers import generation
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr(generation, "Anthropic", FakeAnthropic)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+    get_settings.cache_clear()
+
+    agency = Agency(supabase_user_id="sb-gen-noconn", name="Acme", email="gen-noconn@acme.test")
+    db_session.add(agency)
+    db_session.flush()
+    client_row = Client(agency_id=agency.id, name="Client A")  # no connection at all
+    db_session.add(client_row)
+    db_session.flush()
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id)
+    db_session.add(draft)
+    db_session.commit()
+
+    headers = {"Authorization": f"Bearer {make_supabase_jwt(agency.supabase_user_id)}"}
+    response = client.post(f"/briefs/{draft.id}/generate", headers=headers)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["mode"] == "demo"
+
+    get_settings.cache_clear()
+    main.app.dependency_overrides.clear()
+
+
+def test_generate_draft_falls_back_to_demo_when_client_only_demo_connected(client, db_session, monkeypatch):
+    """Same as above, but for a client that went through /demo-connect (stamped
+    customer IDs prefixed "demo-") rather than never connecting at all."""
+    from app import main
+    from app.config import get_settings
+    from app.routers import generation
+
+    main.app.dependency_overrides[main.get_db] = lambda: db_session
+    monkeypatch.setattr(generation, "Anthropic", FakeAnthropic)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+    get_settings.cache_clear()
+
+    agency = Agency(supabase_user_id="sb-gen-democonn", name="Acme", email="gen-democonn@acme.test")
+    db_session.add(agency)
+    db_session.flush()
+    client_row = Client(agency_id=agency.id, name="Client A", google_ads_customer_id="demo-abcd1234")
+    db_session.add(client_row)
+    db_session.flush()
+    brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
+    db_session.add(brief)
+    db_session.flush()
+    draft = CampaignDraft(brief_id=brief.id)
+    db_session.add(draft)
+    db_session.commit()
+
+    headers = {"Authorization": f"Bearer {make_supabase_jwt(agency.supabase_user_id)}"}
+    response = client.post(f"/briefs/{draft.id}/generate", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["mode"] == "demo"
 
     get_settings.cache_clear()
     main.app.dependency_overrides.clear()

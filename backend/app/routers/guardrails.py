@@ -31,11 +31,14 @@ def run_guardrails(
         raise HTTPException(status_code=400, detail="Draft has not been generated yet")
 
     ir = CampaignIR.model_validate(draft.ir_json)
-    brand_voice = draft.brief.client.brand_voice_profile
+    client = draft.brief.client
+    brand_voice = client.brand_voice_profile
     settings = get_settings()
 
     flags = run_rule_checks(ir, brand_voice, brief=draft.brief)
-    if settings.anthropic_api_key:
+    # Same reasoning as generation.py: only spend on a real AI review when this client
+    # can actually launch for real.
+    if settings.anthropic_api_key and client.has_real_platform_connection:
         anthropic_client = Anthropic(api_key=settings.anthropic_api_key)
         flags += run_semantic_check(ir, brand_voice, anthropic_client=anthropic_client)
 
