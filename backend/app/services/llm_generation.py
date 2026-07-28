@@ -33,8 +33,12 @@ def _build_prompt(brief: Brief, brand_voice: BrandVoiceProfile | None) -> str:
         f"Required disclaimers: {disclaimers}\n"
         f"Currently approved offers: {offers}\n"
         "Return JSON with keys: campaign_name, objective (one of leads/sales/traffic/awareness), "
-        "daily_budget_usd, end_date (YYYY-MM-DD or null), keywords (list of strings), "
-        "audience_description, ad_copy (list of {headline, description}), call_to_action."
+        "daily_budget_usd, end_date (YYYY-MM-DD or null), audience_segments (1-3 objects with "
+        "name, description, optional age_min/age_max, interests (list of strings), "
+        "keywords (list of {text, match_type} where match_type is exact/phrase/broad), "
+        "ad_copy (list of {headline, description}, 2+ per segment recommended)), "
+        "call_to_action, callouts (3-10 short trust phrases), "
+        "structured_snippets (object mapping header strings to value lists)."
     )
 
 
@@ -58,7 +62,7 @@ def generate_campaign_ir(
     prompt = _build_prompt(brief, brand_voice)
     response = anthropic_client.messages.create(
         model=settings.anthropic_model,
-        max_tokens=1024,
+        max_tokens=2048,
         system=_SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],
     )

@@ -5,6 +5,7 @@ import { DraftDetailPage } from './DraftDetailPage'
 import { createFakeApiClient } from '../test/fakeApiClient'
 import { renderWithProviders } from '../test/renderWithProviders'
 import type { DraftDetail, GuardrailReport, LaunchResponse } from '../lib/types'
+import { emptyGooglePlan, emptyMetaPlan } from '../test/planFixtures'
 
 function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
   return {
@@ -28,15 +29,8 @@ function baseDraft(overrides: Partial<DraftDetail> = {}): DraftDetail {
     competitors: null,
     uniqueSellingPoints: null,
     excludedKeywords: [],
-    googlePlan: {
-      campaignName: 'Austin Bakery',
-      dailyBudgetMicros: 16_500_000,
-      endDate: null,
-      finalUrl: null,
-      negativeKeywords: [],
-      adGroups: [],
-    },
-    metaPlan: { campaignName: 'Austin Bakery', objective: 'traffic', websiteUrl: null, adSets: [] },
+    googlePlan: emptyGooglePlan(),
+    metaPlan: emptyMetaPlan(),
     guardrail: null,
     launches: [],
     projectedMetrics: null,
@@ -223,14 +217,10 @@ describe('DraftDetailPage', () => {
       competitors: 'Big Bakery Co',
       uniqueSellingPoints: 'Family recipes since 1990',
       excludedKeywords: ['free', 'cheap'],
-      googlePlan: {
-        campaignName: 'Austin Bakery',
-        dailyBudgetMicros: 16_500_000,
-        endDate: null,
+      googlePlan: emptyGooglePlan({
         finalUrl: 'https://acmebakery.test',
         negativeKeywords: ['free', 'cheap'],
-        adGroups: [],
-      },
+      }),
       metaPlan: null,
     })
     const apiClient = createFakeApiClient({ getBrief: async () => draft })
@@ -277,8 +267,8 @@ describe('DraftDetailPage', () => {
     expect(screen.getByText('1.3K')).toBeInTheDocument()
     expect(screen.getByText('15')).toBeInTheDocument()
     expect(screen.getByText('37.5K')).toBeInTheDocument()
-    expect(screen.getByText('5.0')).toBeInTheDocument()
-    expect(screen.getByText('10.0')).toBeInTheDocument()
+    expect(screen.getByText(/5 clicks/)).toBeInTheDocument()
+    expect(screen.getByText(/10 clicks/)).toBeInTheDocument()
   })
 
   it('omits the projected performance section when there is no projected data yet', async () => {

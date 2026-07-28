@@ -122,6 +122,7 @@ def set_brand_voice(
     profile.banned_terms = body.banned_terms
     profile.required_disclaimers = body.required_disclaimers
     profile.approved_offers = body.approved_offers
+    profile.sitelinks = [s.model_dump() for s in body.sitelinks]
     db.commit()
     db.refresh(profile)
 

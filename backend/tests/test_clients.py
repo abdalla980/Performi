@@ -41,6 +41,7 @@ def test_set_brand_voice_for_client(client, db_session):
             "banned_terms": ["cheap"],
             "required_disclaimers": ["Results vary."],
             "approved_offers": ["10% off first order"],
+            "sitelinks": [{"text": "Menu", "url": "https://example.com/menu", "description": "See our menu"}],
         },
         headers=headers,
     )
@@ -49,6 +50,7 @@ def test_set_brand_voice_for_client(client, db_session):
     body = response.json()
     assert body["tone"] == "friendly, expert"
     assert body["banned_terms"] == ["cheap"]
+    assert body["sitelinks"] == [{"text": "Menu", "url": "https://example.com/menu", "description": "See our menu"}]
 
     main.app.dependency_overrides.clear()
 

@@ -138,6 +138,7 @@ describe('createHttpApiClient', () => {
       bannedTerms: ['cheap'],
       requiredDisclaimers: [],
       approvedOffers: [],
+      sitelinks: [],
     })
   })
 
@@ -171,6 +172,7 @@ describe('createHttpApiClient', () => {
       bannedTerms: ['cheap'],
       requiredDisclaimers: ['Results vary.'],
       approvedOffers: [],
+      sitelinks: [{ text: 'Menu', url: 'https://example.com/menu', description: null }],
     })
 
     expect(fetchFn).toHaveBeenCalledWith(
@@ -182,6 +184,7 @@ describe('createHttpApiClient', () => {
           banned_terms: ['cheap'],
           required_disclaimers: ['Results vary.'],
           approved_offers: [],
+          sitelinks: [{ text: 'Menu', url: 'https://example.com/menu', description: null }],
         }),
       }),
     )
@@ -445,7 +448,17 @@ describe('createHttpApiClient', () => {
           end_date: null,
           final_url: 'https://acmebakery.test',
           negative_keywords: ['free'],
-          ad_groups: [{ name: 'Primary', keywords: ['bakery'], headlines: ['Fresh'], descriptions: ['Visit today.'] }],
+          ad_groups: [
+            {
+              name: 'Primary',
+              keywords: [{ text: 'bakery', match_type: 'phrase' }],
+              headlines: ['Fresh'],
+              descriptions: ['Visit today.'],
+            },
+          ],
+          callouts: [],
+          structured_snippets: {},
+          sitelinks: [],
         },
         meta_plan: {
           campaign_name: 'Austin Bakery',
@@ -456,9 +469,13 @@ describe('createHttpApiClient', () => {
               name: 'Primary',
               daily_budget_cents: 1650,
               targeting_description: 'Adults 25-54',
-              creative_headline: 'Fresh',
-              creative_body: 'Visit today.',
-              call_to_action: 'Visit Us Today',
+              creatives: [
+                {
+                  headline: 'Fresh',
+                  body: 'Visit today.',
+                  call_to_action: 'Visit Us Today',
+                },
+              ],
             },
           ],
         },

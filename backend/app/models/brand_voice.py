@@ -15,5 +15,7 @@ class BrandVoiceProfile(Base):
     banned_terms: Mapped[list[str]] = mapped_column(JSON, default=list)
     required_disclaimers: Mapped[list[str]] = mapped_column(JSON, default=list)
     approved_offers: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Agency-entered Google sitelinks — real URLs, never LLM-generated.
+    sitelinks: Mapped[list] = mapped_column(JSON, default=list)
 
     client: Mapped["Client"] = relationship(back_populates="brand_voice_profile")

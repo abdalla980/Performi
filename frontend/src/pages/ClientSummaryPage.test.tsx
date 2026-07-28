@@ -4,6 +4,7 @@ import { ClientSummaryPage } from './ClientSummaryPage'
 import { createFakeApiClient } from '../test/fakeApiClient'
 import { renderWithProviders } from '../test/renderWithProviders'
 import type { ClientDetail, DraftDetail } from '../lib/types'
+import { emptyGooglePlan } from '../test/planFixtures'
 
 const DRAFT: DraftDetail = {
   id: 'draft-1',
@@ -26,14 +27,11 @@ const DRAFT: DraftDetail = {
   competitors: 'Big Bakery Co',
   uniqueSellingPoints: 'Fresh daily',
   excludedKeywords: ['free'],
-  googlePlan: {
+  googlePlan: emptyGooglePlan({
     campaignName: 'Bakery Campaign',
     dailyBudgetMicros: 16_000_000,
-    endDate: null,
     finalUrl: 'https://acme.test',
-    negativeKeywords: [],
-    adGroups: [],
-  },
+  }),
   metaPlan: null,
   guardrail: {
     id: 'gr-1',
@@ -53,7 +51,7 @@ const CLIENT: ClientDetail = {
   googleConnected: false,
   metaConnected: false,
   logoUrl: null,
-  brandVoice: { id: 'bv-1', clientId: 'client-1', tone: 'warm and friendly', bannedTerms: [], requiredDisclaimers: [], approvedOffers: [] },
+  brandVoice: { id: 'bv-1', clientId: 'client-1', tone: 'warm and friendly', bannedTerms: [], requiredDisclaimers: [], approvedOffers: [], sitelinks: [] },
   assets: [],
 }
 

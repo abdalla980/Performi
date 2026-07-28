@@ -1,7 +1,10 @@
 from typing import Protocol
 
+import httpx
+
 from app.config import get_settings
 from app.schemas.meta_plan import MetaCampaignPlan
+from app.services.meta_interest_resolver import resolve_interests
 
 
 class MetaAdsPushPort(Protocol):
@@ -17,6 +20,23 @@ class FakeMetaAdsPushClient:
         if self._raise_error is not None:
             raise self._raise_error
         return self._external_id
+
+
+def _build_targeting(ad_set, access_token: str, http_client: httpx.Client | None = None) -> dict:
+    age_min = ad_set.age_min if ad_set.age_min is not None else 18
+    age_max = ad_set.age_max if ad_set.age_max is not None else 65
+    targeting: dict = {
+        "geo_locations": {"countries": ["US"]},
+        "age_min": age_min,
+        "age_max": age_max,
+    }
+    if ad_set.interests:
+        resolved, _skipped = resolve_interests(ad_set.interests, access_token, http_client=http_client)
+        if resolved:
+            targeting["flexible_spec"] = [
+                {"interests": [{"id": r["id"], "name": r["name"]} for r in resolved]}
+            ]
+    return targeting
 
 
 class RealMetaAdsPushClient:
@@ -71,55 +91,51 @@ class RealMetaAdsPushClient:
         )
         campaign_id = campaign[Campaign.Field.id]
 
-        for ad_set in plan.ad_sets:
-            adset = account.create_ad_set(
-                params={
-                    AdSet.Field.name: ad_set.name,
-                    AdSet.Field.campaign_id: campaign_id,
-                    AdSet.Field.daily_budget: ad_set.daily_budget_cents,
-                    AdSet.Field.billing_event: AdSet.BillingEvent.impressions,
-                    AdSet.Field.optimization_goal: optimization_goal_map[plan.objective],
-                    AdSet.Field.destination_type: AdSet.DestinationType.website,
-                    # No structured audience data exists upstream yet (only a free-text
-                    # targeting_description) — broad US 18-65 placeholder until the IR
-                    # carries real geo/age/interest targeting.
-                    AdSet.Field.targeting: {
-                        "geo_locations": {"countries": ["US"]},
-                        "age_min": 18,
-                        "age_max": 65,
-                    },
-                    AdSet.Field.status: AdSet.Status.paused,
-                }
-            )
-            adset_id = adset[AdSet.Field.id]
+        with httpx.Client(timeout=15.0) as http_client:
+            for ad_set in plan.ad_sets:
+                targeting = _build_targeting(ad_set, access_token, http_client=http_client)
+                adset = account.create_ad_set(
+                    params={
+                        AdSet.Field.name: ad_set.name,
+                        AdSet.Field.campaign_id: campaign_id,
+                        AdSet.Field.daily_budget: ad_set.daily_budget_cents,
+                        AdSet.Field.billing_event: AdSet.BillingEvent.impressions,
+                        AdSet.Field.optimization_goal: optimization_goal_map[plan.objective],
+                        AdSet.Field.destination_type: AdSet.DestinationType.website,
+                        AdSet.Field.targeting: targeting,
+                        AdSet.Field.status: AdSet.Status.paused,
+                    }
+                )
+                adset_id = adset[AdSet.Field.id]
 
-            creative = account.create_ad_creative(
-                params={
-                    AdCreative.Field.name: f"{ad_set.name} Creative",
-                    AdCreative.Field.object_story_spec: {
-                        "page_id": settings.meta_page_id,
-                        "link_data": {
-                            "message": ad_set.creative_body,
-                            "link": plan.website_url,
-                            "name": ad_set.creative_headline,
-                            # ad_set.call_to_action is free-text ad copy, not one of
-                            # Meta's fixed CTA button values — use a safe universal
-                            # default for the button itself.
-                            "call_to_action": {"type": "LEARN_MORE"},
-                        },
-                    },
-                }
-            )
-            creative_id = creative[AdCreative.Field.id]
+                for index, creative_spec in enumerate(ad_set.creatives):
+                    creative = account.create_ad_creative(
+                        params={
+                            AdCreative.Field.name: f"{ad_set.name} Creative {index + 1}",
+                            AdCreative.Field.object_story_spec: {
+                                "page_id": settings.meta_page_id,
+                                "link_data": {
+                                    "message": creative_spec.body,
+                                    "link": plan.website_url,
+                                    "name": creative_spec.headline,
+                                    # call_to_action is free-text ad copy, not one of
+                                    # Meta's fixed CTA button values — use a safe universal
+                                    # default for the button itself.
+                                    "call_to_action": {"type": "LEARN_MORE"},
+                                },
+                            },
+                        }
+                    )
+                    creative_id = creative[AdCreative.Field.id]
 
-            account.create_ad(
-                params={
-                    Ad.Field.name: f"{ad_set.name} Ad",
-                    Ad.Field.adset_id: adset_id,
-                    Ad.Field.creative: {"creative_id": creative_id},
-                    Ad.Field.status: Ad.Status.paused,
-                }
-            )
+                    account.create_ad(
+                        params={
+                            Ad.Field.name: f"{ad_set.name} Ad {index + 1}",
+                            Ad.Field.adset_id: adset_id,
+                            Ad.Field.creative: {"creative_id": creative_id},
+                            Ad.Field.status: Ad.Status.paused,
+                        }
+                    )
 
         return campaign_id
 

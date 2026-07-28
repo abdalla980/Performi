@@ -2,8 +2,9 @@ import json
 from types import SimpleNamespace
 
 from app.models.brand_voice import BrandVoiceProfile
-from app.schemas.campaign_ir import AdCopyVariant, CampaignIR
+from app.schemas.campaign_ir import AdCopyVariant, AudienceSegment, CampaignIR, KeywordEntry
 from app.services.guardrails import run_rule_checks, run_semantic_check
+from tests.ir_fixtures import make_campaign_ir
 
 
 class FakeAnthropicClient:
@@ -23,14 +24,16 @@ class FakeAnthropicClient:
 
 
 def _ir(daily_budget_usd=16.5, headline="Fresh Pastries Daily") -> CampaignIR:
-    return CampaignIR(
-        campaign_name="Austin Bakery",
-        objective="traffic",
+    return make_campaign_ir(
         daily_budget_usd=daily_budget_usd,
-        keywords=["bakery near me"],
-        audience_description="Adults 25-54 near Austin",
-        ad_copy=[AdCopyVariant(headline=headline, description="Visit today.")],
-        call_to_action="Visit Us Today",
+        audience_segments=[
+            AudienceSegment(
+                name="Primary",
+                description="Adults 25-54 near Austin",
+                keywords=[KeywordEntry(text="bakery near me")],
+                ad_copy=[AdCopyVariant(headline=headline, description="Visit today.")],
+            )
+        ],
     )
 
 
@@ -57,14 +60,15 @@ def test_rule_checks_passes_clean_campaign():
 
 
 def test_rule_checks_flags_keyword_overlapping_negative_keywords():
-    ir = CampaignIR(
-        campaign_name="Austin Bakery",
-        objective="traffic",
-        daily_budget_usd=16.5,
-        keywords=["bakery near me", "cheap bakery"],
-        audience_description="Adults 25-54 near Austin",
-        ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
-        call_to_action="Visit Us Today",
+    ir = make_campaign_ir(
+        audience_segments=[
+            AudienceSegment(
+                name="Primary",
+                description="Adults 25-54 near Austin",
+                keywords=[KeywordEntry(text="bakery near me"), KeywordEntry(text="cheap bakery")],
+                ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
+            )
+        ],
         negative_keywords=["Cheap Bakery"],
     )
 
@@ -73,6 +77,23 @@ def test_rule_checks_flags_keyword_overlapping_negative_keywords():
     codes = {f.code for f in flags}
     assert "keyword_overlaps_negative" in codes
     assert all(f.severity == "warn" for f in flags if f.code == "keyword_overlaps_negative")
+
+
+def test_rule_checks_warns_on_empty_segment_ad_copy():
+    ir = make_campaign_ir(
+        audience_segments=[
+            AudienceSegment(
+                name="Empty",
+                description="No ads",
+                keywords=[KeywordEntry(text="bakery near me")],
+                ad_copy=[],
+            )
+        ]
+    )
+
+    flags = run_rule_checks(ir, brand_voice=None)
+
+    assert any(f.code == "empty_segment_ad_copy" for f in flags)
 
 
 def test_semantic_check_parses_llm_flags():

@@ -16,6 +16,7 @@ from app.services.demo_generation import generate_demo_campaign_ir
 from app.services.google_adapter import adapt_to_google
 from app.services.llm_generation import generate_campaign_ir
 from app.services.meta_adapter import adapt_to_meta
+from app.services.sitelinks import attach_sitelinks
 
 router = APIRouter(prefix="/briefs", tags=["generation"])
 
@@ -42,6 +43,8 @@ def generate_draft(
 
     platforms = draft.brief.platforms
     google_plan = adapt_to_google(ir) if "google" in platforms else None
+    if google_plan is not None:
+        google_plan = attach_sitelinks(google_plan, brand_voice)
     meta_plan = adapt_to_meta(ir) if "meta" in platforms else None
 
     draft.ir_json = ir.model_dump(mode="json")

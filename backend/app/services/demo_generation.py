@@ -3,7 +3,7 @@ from typing import Literal
 
 from app.models.brand_voice import BrandVoiceProfile
 from app.models.brief import Brief
-from app.schemas.campaign_ir import AdCopyVariant, CampaignIR
+from app.schemas.campaign_ir import AdCopyVariant, AudienceSegment, CampaignIR, KeywordEntry
 
 _LEADS_TERMS = ("lead", "call", "book", "appointment", "quote", "consult")
 _SALES_TERMS = ("sale", "purchase", "buy", "order", "revenue")
@@ -71,16 +71,21 @@ def generate_demo_campaign_ir(brief: Brief, brand_voice: BrandVoiceProfile | Non
         audience_description = f"{audience_description} in {brief.target_location}"
 
     excluded_lower = {keyword.lower() for keyword in excluded_keywords}
-    keywords = [keyword for keyword in _build_keywords(description) if keyword.lower() not in excluded_lower]
+    keyword_texts = [keyword for keyword in _build_keywords(description) if keyword.lower() not in excluded_lower]
+
+    segment = AudienceSegment(
+        name="Primary",
+        description=audience_description,
+        keywords=[KeywordEntry(text=kw) for kw in (keyword_texts or ["local business", "near me"])],
+        ad_copy=[AdCopyVariant(headline=headline, description=ad_description)],
+    )
 
     return CampaignIR(
         campaign_name=_strip_banned(f"{description.title()} — {objective.title()} Campaign", banned_terms),
         objective=objective,
         daily_budget_usd=daily_budget_usd,
         end_date=brief.end_date,
-        keywords=keywords or ["local business", "near me"],
-        audience_description=audience_description,
-        ad_copy=[AdCopyVariant(headline=headline, description=ad_description)],
+        audience_segments=[segment],
         call_to_action=cta,
         website_url=brief.website_url,
         negative_keywords=list(excluded_keywords),

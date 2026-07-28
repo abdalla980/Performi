@@ -1,9 +1,9 @@
 from app.models.agency import Agency
 from app.models.brief import Brief, CampaignDraft
 from app.models.client import Client
-from app.schemas.campaign_ir import AdCopyVariant, CampaignIR
 from app.services.google_adapter import adapt_to_google
 from tests.conftest import make_supabase_jwt
+from tests.ir_fixtures import make_campaign_ir
 
 
 def _agency_and_client(db_session, client_supabase_user_id="sb-client-1"):
@@ -21,15 +21,7 @@ def _draft(db_session, client_row, status):
     brief = Brief(client_id=client_row.id, business_description="Bakery", budget_usd=500, goals="Traffic")
     db_session.add(brief)
     db_session.flush()
-    ir = CampaignIR(
-        campaign_name="Austin Bakery",
-        objective="traffic",
-        daily_budget_usd=16.5,
-        keywords=["bakery near me"],
-        audience_description="Adults 25-54 near Austin",
-        ad_copy=[AdCopyVariant(headline="Fresh Pastries Daily", description="Visit today.")],
-        call_to_action="Visit Us Today",
-    )
+    ir = make_campaign_ir(campaign_name="Austin Bakery")
     draft = CampaignDraft(
         brief_id=brief.id,
         status=status,

@@ -54,6 +54,7 @@ export function ClientDetailPage() {
   const [bannedTerms, setBannedTerms] = useState('')
   const [requiredDisclaimers, setRequiredDisclaimers] = useState('')
   const [approvedOffers, setApprovedOffers] = useState('')
+  const [sitelinks, setSitelinks] = useState<Array<{ text: string; url: string; description: string }>>([])
 
   useEffect(() => {
     if (client?.brandVoice) {
@@ -61,6 +62,13 @@ export function ClientDetailPage() {
       setBannedTerms(client.brandVoice.bannedTerms.join(', '))
       setRequiredDisclaimers(client.brandVoice.requiredDisclaimers.join(', '))
       setApprovedOffers(client.brandVoice.approvedOffers.join(', '))
+      setSitelinks(
+        client.brandVoice.sitelinks.map((link) => ({
+          text: link.text,
+          url: link.url,
+          description: link.description ?? '',
+        })),
+      )
     }
   }, [client?.brandVoice])
 
@@ -81,6 +89,13 @@ export function ClientDetailPage() {
         bannedTerms: toList(bannedTerms),
         requiredDisclaimers: toList(requiredDisclaimers),
         approvedOffers: toList(approvedOffers),
+        sitelinks: sitelinks
+          .filter((link) => link.text.trim() && link.url.trim())
+          .map((link) => ({
+            text: link.text.trim(),
+            url: link.url.trim(),
+            description: link.description.trim() || null,
+          })),
       }),
     onSuccess: invalidateClient,
   })
@@ -425,6 +440,63 @@ export function ClientDetailPage() {
                 value={approvedOffers}
                 onChange={(event) => setApprovedOffers(event.target.value)}
               />
+            </div>
+            <div className="flex flex-col gap-3">
+              <div>
+                <Label>Google sitelinks</Label>
+                <p className="text-xs text-muted-foreground">
+                  Real pages on this client's site. Attached to Google campaigns at launch — not AI-generated.
+                </p>
+              </div>
+              {sitelinks.map((link, index) => (
+                <div key={index} className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_1fr_auto]">
+                  <Input
+                    aria-label={`Sitelink ${index + 1} text`}
+                    placeholder="Link text"
+                    value={link.text}
+                    onChange={(event) =>
+                      setSitelinks((rows) =>
+                        rows.map((row, i) => (i === index ? { ...row, text: event.target.value } : row)),
+                      )
+                    }
+                  />
+                  <Input
+                    aria-label={`Sitelink ${index + 1} URL`}
+                    placeholder="https://…"
+                    value={link.url}
+                    onChange={(event) =>
+                      setSitelinks((rows) =>
+                        rows.map((row, i) => (i === index ? { ...row, url: event.target.value } : row)),
+                      )
+                    }
+                  />
+                  <Input
+                    aria-label={`Sitelink ${index + 1} description`}
+                    placeholder="Description (optional)"
+                    value={link.description}
+                    onChange={(event) =>
+                      setSitelinks((rows) =>
+                        rows.map((row, i) => (i === index ? { ...row, description: event.target.value } : row)),
+                      )
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setSitelinks((rows) => rows.filter((_, i) => i !== index))}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                className="self-start"
+                onClick={() => setSitelinks((rows) => [...rows, { text: '', url: '', description: '' }])}
+              >
+                Add sitelink
+              </Button>
             </div>
             {saveBrandVoiceMutation.isError && (
               <Alert>

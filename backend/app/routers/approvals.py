@@ -14,6 +14,7 @@ from app.security import get_current_agency
 from app.services.audit import record_audit_event
 from app.services.google_adapter import adapt_to_google
 from app.services.meta_adapter import adapt_to_meta
+from app.services.sitelinks import attach_sitelinks
 
 router = APIRouter(prefix="/briefs", tags=["approvals"])
 
@@ -36,7 +37,9 @@ def decide_draft(
 
         if body.edited_ir is not None:
             draft.ir_json = body.edited_ir.model_dump(mode="json")
-            draft.google_plan_json = adapt_to_google(body.edited_ir).model_dump(mode="json")
+            google_plan = adapt_to_google(body.edited_ir)
+            google_plan = attach_sitelinks(google_plan, draft.brief.client.brand_voice_profile)
+            draft.google_plan_json = google_plan.model_dump(mode="json")
             draft.meta_plan_json = adapt_to_meta(body.edited_ir).model_dump(mode="json")
 
     approval = Approval(

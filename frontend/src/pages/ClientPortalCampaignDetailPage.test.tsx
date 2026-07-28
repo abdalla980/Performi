@@ -5,6 +5,7 @@ import { ClientPortalCampaignDetailPage } from './ClientPortalCampaignDetailPage
 import { createFakeClientPortalApiClient } from '../test/fakeClientPortalApiClient'
 import { renderWithClientPortalProviders } from '../test/renderWithClientPortalProviders'
 import type { ClientPortalCampaignDetail } from '../lib/types'
+import { emptyGooglePlan } from '../test/planFixtures'
 
 function baseCampaign(overrides: Partial<ClientPortalCampaignDetail> = {}): ClientPortalCampaignDetail {
   return {
@@ -20,14 +21,7 @@ function baseCampaign(overrides: Partial<ClientPortalCampaignDetail> = {}): Clie
     targetAudience: null,
     endDate: null,
     platforms: ['google'],
-    googlePlan: {
-      campaignName: 'Austin Bakery',
-      dailyBudgetMicros: 16_500_000,
-      endDate: null,
-      finalUrl: null,
-      negativeKeywords: [],
-      adGroups: [],
-    },
+    googlePlan: emptyGooglePlan(),
     metaPlan: null,
     projectedMetrics: null,
     launches: [],

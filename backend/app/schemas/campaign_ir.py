@@ -9,14 +9,29 @@ class AdCopyVariant(BaseModel):
     description: str
 
 
+class KeywordEntry(BaseModel):
+    text: str
+    match_type: Literal["exact", "phrase", "broad"] = "phrase"
+
+
+class AudienceSegment(BaseModel):
+    name: str
+    description: str
+    age_min: int | None = None
+    age_max: int | None = None
+    interests: list[str] = []
+    keywords: list[KeywordEntry]
+    ad_copy: list[AdCopyVariant]
+
+
 class CampaignIR(BaseModel):
     campaign_name: str
     objective: Literal["leads", "sales", "traffic", "awareness"]
     daily_budget_usd: float
     end_date: date | None = None
-    keywords: list[str]
-    audience_description: str
-    ad_copy: list[AdCopyVariant]
+    audience_segments: list[AudienceSegment]
     call_to_action: str
     website_url: str | None = None
     negative_keywords: list[str] = []
+    callouts: list[str] = []
+    structured_snippets: dict[str, list[str]] = {}
