@@ -35,18 +35,27 @@ def push_draft_with_clients(
     meta_client: MetaAdsPushPort,
     sleep_fn: Callable[[float], None] = time.sleep,
 ) -> list[LaunchRecord]:
-    """Pushes a generated draft to every platform the client has connected. Each
-    platform is attempted independently (with retry) and recorded as its own
-    LaunchRecord, so one platform failing does not affect the other's result."""
+    """Pushes a generated draft to every platform the client has linked under the
+    agency's manager credentials. Each platform is attempted independently (with
+    retry) and recorded as its own LaunchRecord."""
     draft = db.get(CampaignDraft, draft_id)
     client_row = draft.brief.client
+    agency = client_row.agency
     records: list[LaunchRecord] = []
 
-    if client_row.google_refresh_token_encrypted and draft.google_plan_json:
+    if (
+        agency.google_ads_refresh_token_encrypted
+        and agency.google_ads_login_customer_id
+        and client_row.google_ads_customer_id
+        and draft.google_plan_json
+    ):
         plan = GoogleCampaignPlan.model_validate(draft.google_plan_json)
-        refresh_token = decrypt_token(client_row.google_refresh_token_encrypted)
+        refresh_token = decrypt_token(agency.google_ads_refresh_token_encrypted)
+        login_customer_id = agency.google_ads_login_customer_id
+        customer_id = client_row.google_ads_customer_id
         external_id, error = _push_with_retry(
-            lambda: google_client.push(plan, refresh_token, client_row.google_ads_customer_id), sleep_fn
+            lambda: google_client.push(plan, refresh_token, login_customer_id, customer_id),
+            sleep_fn,
         )
         records.append(
             LaunchRecord(
@@ -58,11 +67,12 @@ def push_draft_with_clients(
             )
         )
 
-    if client_row.meta_access_token_encrypted and draft.meta_plan_json:
+    if agency.meta_access_token_encrypted and client_row.meta_ad_account_id and draft.meta_plan_json:
         plan = MetaCampaignPlan.model_validate(draft.meta_plan_json)
-        access_token = decrypt_token(client_row.meta_access_token_encrypted)
+        access_token = decrypt_token(agency.meta_access_token_encrypted)
+        ad_account_id = client_row.meta_ad_account_id
         external_id, error = _push_with_retry(
-            lambda: meta_client.push(plan, access_token, client_row.meta_ad_account_id), sleep_fn
+            lambda: meta_client.push(plan, access_token, ad_account_id), sleep_fn
         )
         records.append(
             LaunchRecord(

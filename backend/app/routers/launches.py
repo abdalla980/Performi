@@ -42,11 +42,19 @@ def launch_draft(
         raise HTTPException(status_code=409, detail="Draft must be approved by the client before launch")
 
     client_row = draft.brief.client
-    google_ready = bool(client_row.google_refresh_token_encrypted and draft.google_plan_json)
-    meta_ready = bool(client_row.meta_access_token_encrypted and draft.meta_plan_json)
+    google_ready = bool(
+        agency.google_ads_refresh_token_encrypted
+        and agency.google_ads_login_customer_id
+        and client_row.google_ads_customer_id
+        and draft.google_plan_json
+    )
+    meta_ready = bool(
+        agency.meta_access_token_encrypted and client_row.meta_ad_account_id and draft.meta_plan_json
+    )
     if not google_ready and not meta_ready:
         raise HTTPException(
-            status_code=400, detail="Draft has not been generated or client has no connected ad platform"
+            status_code=400,
+            detail="Draft has not been generated or client has no linked ad platform under a connected manager account",
         )
 
     records = push_draft_with_clients(

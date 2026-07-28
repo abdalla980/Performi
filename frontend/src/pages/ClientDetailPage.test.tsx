@@ -64,8 +64,8 @@ describe('ClientDetailPage', () => {
     await waitFor(() => expect(connectGoogleDemo).toHaveBeenCalledWith('client-1'))
   })
 
-  it('navigates to the real OAuth URL when the platform is configured', async () => {
-    const client: ClientDetail = {
+  it('saves pasted Google and Meta account IDs', async () => {
+    let client: ClientDetail = {
       id: 'client-1',
       name: 'Acme Bakery',
       googleAdsCustomerId: null,
@@ -76,55 +76,14 @@ describe('ClientDetailPage', () => {
       brandVoice: null,
       assets: [],
     }
-    const assignMock = vi.fn()
-    const originalLocation = window.location
-    Object.defineProperty(window, 'location', { configurable: true, value: { ...originalLocation, assign: assignMock } })
-
-    const getGoogleOAuthUrl = vi.fn(async () => 'https://accounts.google.com/o/oauth2/v2/auth?state=client-1')
-    const apiClient = createFakeApiClient({
-      listBriefs: async () => [],
-      getClient: async () => client,
-      getGoogleOAuthUrl,
-      getConfigStatus: async () => ({ anthropicConfigured: false, googleAdsConfigured: true, metaConfigured: false }),
-    })
-
-    renderWithProviders(<ClientDetailPage />, {
-      apiClient,
-      path: '/clients/:clientId',
-      initialEntries: ['/clients/client-1'],
-    })
-
-    await screen.findByText('Acme Bakery')
-    await userEvent.click(await screen.findByRole('button', { name: /connect \(live\)/i }))
-
-    await waitFor(() => expect(getGoogleOAuthUrl).toHaveBeenCalledWith('client-1'))
-    await waitFor(() =>
-      expect(assignMock).toHaveBeenCalledWith('https://accounts.google.com/o/oauth2/v2/auth?state=client-1'),
-    )
-
-    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
-  })
-
-  it('prompts for an ad account ID once connected live, then saves it', async () => {
-    let client: ClientDetail = {
-      id: 'client-1',
-      name: 'Acme Bakery',
-      googleAdsCustomerId: null,
-      metaAdAccountId: null,
-      googleConnected: true,
-      metaConnected: true,
-      logoUrl: null,
-      brandVoice: null,
-      assets: [],
-    }
 
     const getClient = vi.fn(async () => client)
     const setGoogleAdAccount = vi.fn(async (_clientId: string, customerId: string) => {
-      client = { ...client, googleAdsCustomerId: customerId }
+      client = { ...client, googleAdsCustomerId: customerId, googleConnected: true }
       return client
     })
     const setMetaAdAccount = vi.fn(async (_clientId: string, adAccountId: string) => {
-      client = { ...client, metaAdAccountId: adAccountId }
+      client = { ...client, metaAdAccountId: adAccountId, metaConnected: true }
       return client
     })
     const apiClient = createFakeApiClient({
@@ -132,7 +91,6 @@ describe('ClientDetailPage', () => {
       getClient,
       setGoogleAdAccount,
       setMetaAdAccount,
-      getConfigStatus: async () => ({ anthropicConfigured: false, googleAdsConfigured: true, metaConfigured: true }),
     })
 
     renderWithProviders(<ClientDetailPage />, {
@@ -146,7 +104,6 @@ describe('ClientDetailPage', () => {
     await userEvent.type(screen.getByLabelText('Google Ads customer ID'), '123-456-7890')
     await userEvent.click(screen.getByRole('button', { name: 'Save Google Ads customer ID' }))
     await waitFor(() => expect(setGoogleAdAccount).toHaveBeenCalledWith('client-1', '123-456-7890'))
-    await waitFor(() => expect(screen.queryByLabelText('Google Ads customer ID')).not.toBeInTheDocument())
 
     await userEvent.type(screen.getByLabelText('Meta ad account ID'), 'act_999')
     await userEvent.click(screen.getByRole('button', { name: 'Save Meta ad account ID' }))

@@ -141,12 +141,19 @@ def _plan(**overrides) -> GoogleCampaignPlan:
 
 def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
     fake_client = _FakeGoogleAdsClient()
-    monkeypatch.setattr(
-        "google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client
+    captured = {}
+
+    def load_from_dict(config):
+        captured.update(config)
+        return fake_client
+
+    monkeypatch.setattr("google.ads.googleads.client.GoogleAdsClient.load_from_dict", load_from_dict)
+
+    result = RealGoogleAdsPushClient().push(
+        _plan(), refresh_token="rt", login_customer_id="4574433227", customer_id="123"
     )
 
-    result = RealGoogleAdsPushClient().push(_plan(), refresh_token="rt", customer_id="123")
-
+    assert captured["login_customer_id"] == "4574433227"
     assert result == "customers/123/campaigns/1"
     calls_by_name = {name: (customer_id, ops) for name, customer_id, ops in fake_client.service.calls}
 
@@ -202,6 +209,7 @@ def test_push_honors_per_keyword_match_types(monkeypatch):
             ]
         ),
         refresh_token="rt",
+        login_customer_id="4574433227",
         customer_id="123",
     )
 
@@ -224,6 +232,7 @@ def test_push_creates_extension_assets_when_present(monkeypatch):
             sitelinks=[Sitelink(text="Menu", url="https://example.com/menu", description="See our menu")],
         ),
         refresh_token="rt",
+        login_customer_id="4574433227",
         customer_id="123",
     )
 
@@ -249,7 +258,7 @@ def test_push_sets_campaign_end_date_when_present(monkeypatch):
         "google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client
     )
 
-    RealGoogleAdsPushClient().push(_plan(end_date=date(2026, 12, 31)), refresh_token="rt", customer_id="123")
+    RealGoogleAdsPushClient().push(_plan(end_date=date(2026, 12, 31)), refresh_token="rt", login_customer_id="4574433227", customer_id="123")
 
     campaign_ops = fake_client.service.calls[1][2]
     assert campaign_ops[0].create.end_date_time == "2026-12-31"
@@ -262,6 +271,6 @@ def test_push_raises_when_final_url_missing(monkeypatch):
     )
 
     with pytest.raises(ValueError, match="final_url"):
-        RealGoogleAdsPushClient().push(_plan(final_url=None), refresh_token="rt", customer_id="123")
+        RealGoogleAdsPushClient().push(_plan(final_url=None), refresh_token="rt", login_customer_id="4574433227", customer_id="123")
 
     assert fake_client.service.calls == []

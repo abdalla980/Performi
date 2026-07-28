@@ -15,16 +15,21 @@ def _draft(
     google_demo=False,
     meta_demo=False,
 ):
-    agency = Agency(supabase_user_id="sb-launch-1", name="Acme", email="launch@acme.test")
+    agency = Agency(
+        supabase_user_id="sb-launch-1",
+        name="Acme",
+        email="launch@acme.test",
+        google_ads_refresh_token_encrypted=b"not-real-encrypted-bytes" if google_connected else None,
+        google_ads_login_customer_id=("demo-mcc" if google_demo else "4574433227") if google_connected else None,
+        meta_access_token_encrypted=b"not-real-encrypted-bytes" if meta_connected else None,
+    )
     db_session.add(agency)
     db_session.flush()
     client_row = Client(
         agency_id=agency.id,
         name="Client A",
         google_ads_customer_id=("demo-fake0001" if google_demo else "123-456-7890") if google_connected else None,
-        google_refresh_token_encrypted=b"not-real-encrypted-bytes" if google_connected else None,
         meta_ad_account_id=("demo-fake0001" if meta_demo else "act_999") if meta_connected else None,
-        meta_access_token_encrypted=b"not-real-encrypted-bytes" if meta_connected else None,
     )
     db_session.add(client_row)
     db_session.flush()
@@ -121,7 +126,6 @@ def test_launch_pushes_to_both_platforms_independently(client, db_session, monke
 
     assert response.status_code == 200
     body = response.json()
-    # Google failed but Meta succeeded, so the overall launch still counts as launched.
     assert body["status"] == "launched"
     assert body["external_campaign_id"] == "meta-camp-1"
     by_platform = {p["platform"]: p for p in body["platforms"]}
@@ -132,10 +136,6 @@ def test_launch_pushes_to_both_platforms_independently(client, db_session, monke
 
 
 def test_launch_uses_demo_push_for_demo_connected_google_client(client, db_session, monkeypatch):
-    """Regression test: a demo-connected client (google/demo-connect) must not fall
-    through to RealGoogleAdsPushClient, which would burn retries calling the real API
-    with fabricated credentials and always report status=failed. No dependency
-    override here — this exercises the actual default client the route wires up."""
     from app import main
 
     main.app.dependency_overrides[main.get_db] = lambda: db_session
@@ -148,16 +148,18 @@ def test_launch_uses_demo_push_for_demo_connected_google_client(client, db_sessi
     body = response.json()
     assert body["status"] == "launched"
     assert _without_timestamps(body["platforms"]) == [
-        {"platform": "google", "status": "success", "external_campaign_id": "demo-google-demo-fake0001", "error_message": None}
+        {
+            "platform": "google",
+            "status": "success",
+            "external_campaign_id": "demo-google-demo-fake0001",
+            "error_message": None,
+        }
     ]
 
     main.app.dependency_overrides.clear()
 
 
 def test_launch_uses_demo_push_for_demo_connected_meta_client(client, db_session, monkeypatch):
-    """Same regression, Meta side: META_APP_ID/SECRET are real and configured in this
-    dev environment, so a naive "is meta configured" check would still misroute a
-    demo-connected client's fake token straight to the real Graph API."""
     from app import main
 
     main.app.dependency_overrides[main.get_db] = lambda: db_session
@@ -170,16 +172,18 @@ def test_launch_uses_demo_push_for_demo_connected_meta_client(client, db_session
     body = response.json()
     assert body["status"] == "launched"
     assert _without_timestamps(body["platforms"]) == [
-        {"platform": "meta", "status": "success", "external_campaign_id": "demo-meta-demo-fake0001", "error_message": None}
+        {
+            "platform": "meta",
+            "status": "success",
+            "external_campaign_id": "demo-meta-demo-fake0001",
+            "error_message": None,
+        }
     ]
 
     main.app.dependency_overrides.clear()
 
 
 def test_launch_can_be_retried_after_a_previous_failure(client, db_session, monkeypatch):
-    """A campaign stuck at status=failed had no way back into the app before this —
-    /launch only ever accepted client_approved. Retrying should be allowed from
-    failed too, not just the original pre-launch state."""
     from app import main
     from app.routers import launches
     from app.services.google_ads_client import FakeGoogleAdsPushClient

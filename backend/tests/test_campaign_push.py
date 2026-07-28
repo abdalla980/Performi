@@ -11,16 +11,21 @@ from tests.ir_fixtures import make_campaign_ir
 
 
 def _draft(db_session, google_connected=True, meta_connected=True) -> CampaignDraft:
-    agency = Agency(supabase_user_id="sb-push-1", name="Acme", email="push@acme.test")
+    agency = Agency(
+        supabase_user_id="sb-push-1",
+        name="Acme",
+        email="push@acme.test",
+        google_ads_refresh_token_encrypted=b"encrypted" if google_connected else None,
+        google_ads_login_customer_id="4574433227" if google_connected else None,
+        meta_access_token_encrypted=b"encrypted" if meta_connected else None,
+    )
     db_session.add(agency)
     db_session.flush()
     client_row = Client(
         agency_id=agency.id,
         name="Client A",
         google_ads_customer_id="123-456-7890" if google_connected else None,
-        google_refresh_token_encrypted=b"encrypted" if google_connected else None,
         meta_ad_account_id="act_999" if meta_connected else None,
-        meta_access_token_encrypted=b"encrypted" if meta_connected else None,
     )
     db_session.add(client_row)
     db_session.flush()

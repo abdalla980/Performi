@@ -39,7 +39,6 @@ export function ClientDetailPage() {
     queryFn: () => apiClient.getClient(clientId),
     enabled: Boolean(clientId),
   })
-  const { data: configStatus } = useQuery({ queryKey: ['config-status'], queryFn: () => apiClient.getConfigStatus() })
   const { data: campaigns } = useQuery({
     queryKey: ['briefs', { clientId }],
     queryFn: () => apiClient.listBriefs(clientId),
@@ -118,31 +117,22 @@ export function ClientDetailPage() {
     mutationFn: () => apiClient.connectMetaDemo(clientId),
     onSuccess: invalidateClient,
   })
-  const connectGoogleLiveMutation = useMutation({
-    mutationFn: () => apiClient.getGoogleOAuthUrl(clientId),
-    onSuccess: (authorizeUrl) => window.location.assign(authorizeUrl),
-  })
-  const connectMetaLiveMutation = useMutation({
-    mutationFn: () => apiClient.getMetaOAuthUrl(clientId),
-    onSuccess: (authorizeUrl) => window.location.assign(authorizeUrl),
-  })
 
   const [googleCustomerIdInput, setGoogleCustomerIdInput] = useState('')
   const [metaAdAccountIdInput, setMetaAdAccountIdInput] = useState('')
 
+  useEffect(() => {
+    if (client?.googleAdsCustomerId) setGoogleCustomerIdInput(client.googleAdsCustomerId)
+    if (client?.metaAdAccountId) setMetaAdAccountIdInput(client.metaAdAccountId)
+  }, [client?.googleAdsCustomerId, client?.metaAdAccountId])
+
   const setGoogleAdAccountMutation = useMutation({
     mutationFn: (customerId: string) => apiClient.setGoogleAdAccount(clientId, customerId),
-    onSuccess: () => {
-      setGoogleCustomerIdInput('')
-      invalidateClient()
-    },
+    onSuccess: invalidateClient,
   })
   const setMetaAdAccountMutation = useMutation({
     mutationFn: (adAccountId: string) => apiClient.setMetaAdAccount(clientId, adAccountId),
-    onSuccess: () => {
-      setMetaAdAccountIdInput('')
-      invalidateClient()
-    },
+    onSuccess: invalidateClient,
   })
 
   if (isPending) {
@@ -151,9 +141,6 @@ export function ClientDetailPage() {
   if (isError || !client) {
     return <Alert>Couldn't load this client.</Alert>
   }
-
-  const anyPlatformUnconfigured =
-    !configStatus || !configStatus.googleAdsConfigured || !configStatus.metaConfigured
 
   return (
     <div className="flex max-w-2xl flex-col gap-6">
@@ -213,97 +200,83 @@ export function ClientDetailPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Ad account connections</CardTitle>
+          <CardTitle className="text-base">Linked ad accounts</CardTitle>
           <CardDescription>
-            {anyPlatformUnconfigured
-              ? "Live OAuth isn't configured yet for every platform — connect in demo mode to exercise the full pipeline in the meantime."
-              : 'Connect a real account, or use demo mode to exercise the pipeline without one.'}
+            Paste each client's Google Customer ID / Meta Ad Account ID after you've linked them under your manager
+            account in Settings. Use demo connect to exercise the pipeline without live credentials.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex items-center justify-between rounded-md border border-border p-3">
-            <div>
+        <CardContent className="flex flex-col gap-4">
+          <div className="rounded-md border border-border p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-foreground">Google Ads</p>
-              <p className="text-xs text-muted-foreground">{client.googleAdsCustomerId ?? 'Not connected'}</p>
+              {client.googleConnected ? <Badge variant="success">Linked</Badge> : null}
             </div>
-            {client.googleConnected && !client.googleAdsCustomerId ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  aria-label="Google Ads customer ID"
-                  placeholder="123-456-7890"
-                  value={googleCustomerIdInput}
-                  onChange={(event) => setGoogleCustomerIdInput(event.target.value)}
-                  className="h-9 w-36"
-                />
-                <Button
-                  aria-label="Save Google Ads customer ID"
-                  onClick={() => setGoogleAdAccountMutation.mutate(googleCustomerIdInput.trim())}
-                  disabled={setGoogleAdAccountMutation.isPending || !googleCustomerIdInput.trim()}
-                >
-                  {setGoogleAdAccountMutation.isPending ? 'Saving…' : 'Save'}
-                </Button>
-              </div>
-            ) : client.googleConnected ? (
-              <Badge variant="success">Connected</Badge>
-            ) : (
-              <div className="flex gap-2">
-                {configStatus?.googleAdsConfigured && (
-                  <Button
-                    onClick={() => connectGoogleLiveMutation.mutate()}
-                    disabled={connectGoogleLiveMutation.isPending}
-                  >
-                    {connectGoogleLiveMutation.isPending ? 'Redirecting…' : 'Connect (Live)'}
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => connectGoogleMutation.mutate()}
-                  disabled={connectGoogleMutation.isPending}
-                >
-                  {connectGoogleMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                aria-label="Google Ads customer ID"
+                placeholder="123-456-7890"
+                value={googleCustomerIdInput}
+                onChange={(event) => setGoogleCustomerIdInput(event.target.value)}
+                className="h-9 w-44"
+              />
+              <Button
+                aria-label="Save Google Ads customer ID"
+                onClick={() => setGoogleAdAccountMutation.mutate(googleCustomerIdInput.trim())}
+                disabled={setGoogleAdAccountMutation.isPending || !googleCustomerIdInput.trim()}
+              >
+                {setGoogleAdAccountMutation.isPending ? 'Saving…' : 'Save ID'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => connectGoogleMutation.mutate()}
+                disabled={connectGoogleMutation.isPending}
+              >
+                {connectGoogleMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
+              </Button>
+            </div>
+            {setGoogleAdAccountMutation.isError && (
+              <p className="mt-2 text-xs text-destructive">
+                {setGoogleAdAccountMutation.error instanceof Error
+                  ? setGoogleAdAccountMutation.error.message
+                  : 'Failed to save Google customer ID.'}
+              </p>
             )}
           </div>
-          <div className="flex items-center justify-between rounded-md border border-border p-3">
-            <div>
+          <div className="rounded-md border border-border p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
               <p className="text-sm font-medium text-foreground">Meta</p>
-              <p className="text-xs text-muted-foreground">{client.metaAdAccountId ?? 'Not connected'}</p>
+              {client.metaConnected ? <Badge variant="success">Linked</Badge> : null}
             </div>
-            {client.metaConnected && !client.metaAdAccountId ? (
-              <div className="flex items-center gap-2">
-                <Input
-                  aria-label="Meta ad account ID"
-                  placeholder="act_1234567890"
-                  value={metaAdAccountIdInput}
-                  onChange={(event) => setMetaAdAccountIdInput(event.target.value)}
-                  className="h-9 w-36"
-                />
-                <Button
-                  aria-label="Save Meta ad account ID"
-                  onClick={() => setMetaAdAccountMutation.mutate(metaAdAccountIdInput.trim())}
-                  disabled={setMetaAdAccountMutation.isPending || !metaAdAccountIdInput.trim()}
-                >
-                  {setMetaAdAccountMutation.isPending ? 'Saving…' : 'Save'}
-                </Button>
-              </div>
-            ) : client.metaConnected ? (
-              <Badge variant="success">Connected</Badge>
-            ) : (
-              <div className="flex gap-2">
-                {configStatus?.metaConfigured && (
-                  <Button onClick={() => connectMetaLiveMutation.mutate()} disabled={connectMetaLiveMutation.isPending}>
-                    {connectMetaLiveMutation.isPending ? 'Redirecting…' : 'Connect (Live)'}
-                  </Button>
-                )}
-                <Button
-                  variant="outline"
-                  onClick={() => connectMetaMutation.mutate()}
-                  disabled={connectMetaMutation.isPending}
-                >
-                  {connectMetaMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                aria-label="Meta ad account ID"
+                placeholder="act_1234567890"
+                value={metaAdAccountIdInput}
+                onChange={(event) => setMetaAdAccountIdInput(event.target.value)}
+                className="h-9 w-44"
+              />
+              <Button
+                aria-label="Save Meta ad account ID"
+                onClick={() => setMetaAdAccountMutation.mutate(metaAdAccountIdInput.trim())}
+                disabled={setMetaAdAccountMutation.isPending || !metaAdAccountIdInput.trim()}
+              >
+                {setMetaAdAccountMutation.isPending ? 'Saving…' : 'Save ID'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => connectMetaMutation.mutate()}
+                disabled={connectMetaMutation.isPending}
+              >
+                {connectMetaMutation.isPending ? 'Connecting…' : 'Connect (Demo)'}
+              </Button>
+            </div>
+            {setMetaAdAccountMutation.isError && (
+              <p className="mt-2 text-xs text-destructive">
+                {setMetaAdAccountMutation.error instanceof Error
+                  ? setMetaAdAccountMutation.error.message
+                  : 'Failed to save Meta ad account ID.'}
+              </p>
             )}
           </div>
         </CardContent>

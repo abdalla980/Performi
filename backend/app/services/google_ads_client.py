@@ -5,7 +5,9 @@ from app.schemas.google_plan import GoogleCampaignPlan
 
 
 class GoogleAdsPushPort(Protocol):
-    def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str: ...
+    def push(
+        self, plan: GoogleCampaignPlan, refresh_token: str, login_customer_id: str, customer_id: str
+    ) -> str: ...
 
 
 class FakeGoogleAdsPushClient:
@@ -13,7 +15,9 @@ class FakeGoogleAdsPushClient:
         self._external_id = external_id
         self._raise_error = raise_error
 
-    def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str:
+    def push(
+        self, plan: GoogleCampaignPlan, refresh_token: str, login_customer_id: str, customer_id: str
+    ) -> str:
         if self._raise_error is not None:
             raise self._raise_error
         return self._external_id
@@ -78,7 +82,9 @@ class RealGoogleAdsPushClient:
     """Thin wrapper around the official google-ads SDK. Only exercised against a real
     Google Ads sandbox account, never by the fast unit test suite."""
 
-    def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str:
+    def push(
+        self, plan: GoogleCampaignPlan, refresh_token: str, login_customer_id: str, customer_id: str
+    ) -> str:
         from google.ads.googleads.client import GoogleAdsClient
 
         if not plan.final_url:
@@ -91,6 +97,7 @@ class RealGoogleAdsPushClient:
                 "client_id": settings.google_ads_client_id,
                 "client_secret": settings.google_ads_client_secret,
                 "refresh_token": refresh_token,
+                "login_customer_id": login_customer_id,
                 "use_proto_plus": True,
             }
         )
@@ -188,9 +195,11 @@ class DemoAwareGoogleAdsPushClient:
     f"demo-{client_id[:8]}"). Without this check, a demo-connected client's fabricated
     refresh token would reach RealGoogleAdsPushClient and always fail."""
 
-    def push(self, plan: GoogleCampaignPlan, refresh_token: str, customer_id: str) -> str:
+    def push(
+        self, plan: GoogleCampaignPlan, refresh_token: str, login_customer_id: str, customer_id: str
+    ) -> str:
         if customer_id.startswith("demo-"):
             return FakeGoogleAdsPushClient(external_id=f"demo-google-{customer_id}").push(
-                plan, refresh_token, customer_id
+                plan, refresh_token, login_customer_id, customer_id
             )
-        return RealGoogleAdsPushClient().push(plan, refresh_token, customer_id)
+        return RealGoogleAdsPushClient().push(plan, refresh_token, login_customer_id, customer_id)

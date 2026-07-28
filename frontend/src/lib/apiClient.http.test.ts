@@ -207,26 +207,41 @@ describe('createHttpApiClient', () => {
     )
   })
 
-  it('getGoogleOAuthUrl and getMetaOAuthUrl GET the oauth/start routes and return the authorize URL', async () => {
+  it('getAgencyGoogleOAuthUrl and getAgencyMetaOAuthUrl GET the agency oauth/start routes', async () => {
     const fetchFn = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse({ authorize_url: 'https://accounts.google.com/o/oauth2/v2/auth?...' }))
       .mockResolvedValueOnce(jsonResponse({ authorize_url: 'https://www.facebook.com/v20.0/dialog/oauth?...' }))
     const apiClient = makeClient(fetchFn)
 
-    const googleUrl = await apiClient.getGoogleOAuthUrl('client-1')
+    const googleUrl = await apiClient.getAgencyGoogleOAuthUrl()
     expect(fetchFn).toHaveBeenCalledWith(
-      'http://localhost:8000/clients/client-1/google/oauth/start',
+      'http://localhost:8000/agency/google/oauth/start',
       expect.objectContaining({ method: 'GET' }),
     )
     expect(googleUrl).toBe('https://accounts.google.com/o/oauth2/v2/auth?...')
 
-    const metaUrl = await apiClient.getMetaOAuthUrl('client-1')
+    const metaUrl = await apiClient.getAgencyMetaOAuthUrl()
     expect(fetchFn).toHaveBeenCalledWith(
-      'http://localhost:8000/clients/client-1/meta/oauth/start',
+      'http://localhost:8000/agency/meta/oauth/start',
       expect.objectContaining({ method: 'GET' }),
     )
     expect(metaUrl).toBe('https://www.facebook.com/v20.0/dialog/oauth?...')
+  })
+
+  it('setGoogleManagerAccount PUTs the manager customer ID', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ status: 'ok', login_customer_id: '4574433227' }))
+    const apiClient = makeClient(fetchFn)
+
+    await apiClient.setGoogleManagerAccount('4574433227')
+
+    expect(fetchFn).toHaveBeenCalledWith(
+      'http://localhost:8000/agency/google/manager-account',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ login_customer_id: '4574433227' }),
+      }),
+    )
   })
 
   it('setGoogleAdAccount and setMetaAdAccount PUT to the ad-account routes', async () => {

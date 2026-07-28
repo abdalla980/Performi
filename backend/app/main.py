@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.db import Base, engine, get_db  # get_db re-exported for dependency_overrides in tests
 from app.routers import (
+    agency_connect,
     approvals,
     audit,
     briefs,
@@ -46,6 +47,7 @@ app.mount("/uploads", StaticFiles(directory=_uploads_dir), name="uploads")
 app.include_router(me.router)
 app.include_router(whoami.router)
 app.include_router(config.router)
+app.include_router(agency_connect.router)
 app.include_router(clients.router)
 app.include_router(client_assets.router)
 app.include_router(briefs.router)

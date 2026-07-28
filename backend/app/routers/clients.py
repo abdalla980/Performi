@@ -1,12 +1,9 @@
 import uuid
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.db import get_db
 from app.encryption import encrypt_token
 from app.models.agency import Agency
@@ -21,12 +18,9 @@ from app.schemas.client import (
     ClientMetaAdAccountRequest,
     ClientResponse,
 )
-from app.schemas.oauth import OAuthAuthorizeUrlResponse
 from app.security import get_current_agency
 from app.services.audit import record_audit_event
 from app.services.client_deletion import delete_client_cascade
-from app.services.google_oauth import build_authorize_url, exchange_code_for_tokens
-from app.services import meta_oauth
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -44,8 +38,8 @@ def _client_response(client: Client) -> ClientResponse:
         name=client.name,
         google_ads_customer_id=client.google_ads_customer_id,
         meta_ad_account_id=client.meta_ad_account_id,
-        google_connected=client.google_refresh_token_encrypted is not None,
-        meta_connected=client.meta_access_token_encrypted is not None,
+        google_connected=client.google_ads_customer_id is not None,
+        meta_connected=client.meta_ad_account_id is not None,
         logo_url=client_logo_url(client),
     )
 
@@ -136,86 +130,6 @@ def set_brand_voice(
     return profile
 
 
-@router.get("/{client_id}/google/oauth/start", response_model=OAuthAuthorizeUrlResponse)
-def google_oauth_start(
-    client_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    agency: Agency = Depends(get_current_agency),
-) -> OAuthAuthorizeUrlResponse:
-    """Called via an authenticated fetch from the SPA (not a raw browser navigation),
-    so the Authorization header still applies here. The frontend does the actual
-    browser redirect to authorize_url itself once it has this response."""
-    _get_owned_client(db, client_id, agency)
-    return OAuthAuthorizeUrlResponse(authorize_url=build_authorize_url(state=str(client_id)))
-
-
-@router.get("/google/oauth/callback")
-def google_oauth_callback(
-    state: str,
-    code: str,
-    db: Session = Depends(get_db),
-) -> RedirectResponse:
-    """This path must exactly match GOOGLE_ADS_OAUTH_REDIRECT_URI (registered with
-    Google) since it's hit by a raw browser redirect from Google's consent screen,
-    which carries no Authorization header — client identity comes from `state`
-    (set to the client_id by google_oauth_start) instead of get_current_agency.
-    Ownership was already checked when that agency called /oauth/start."""
-    settings = get_settings()
-    client = db.get(Client, uuid.UUID(state))
-    if client is None:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    tokens = exchange_code_for_tokens(code, http_client=httpx.Client())
-    client.google_refresh_token_encrypted = encrypt_token(tokens.refresh_token)
-    db.commit()
-
-    record_audit_event(
-        db,
-        agency_id=client.agency_id,
-        client_id=client.id,
-        event_type="client.google_connected",
-        payload={},
-    )
-    return RedirectResponse(f"{settings.frontend_base_url}/clients/{client.id}?connected=google")
-
-
-@router.get("/{client_id}/meta/oauth/start", response_model=OAuthAuthorizeUrlResponse)
-def meta_oauth_start(
-    client_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    agency: Agency = Depends(get_current_agency),
-) -> OAuthAuthorizeUrlResponse:
-    _get_owned_client(db, client_id, agency)
-    return OAuthAuthorizeUrlResponse(authorize_url=meta_oauth.build_authorize_url(state=str(client_id)))
-
-
-@router.get("/meta/oauth/callback")
-def meta_oauth_callback(
-    state: str,
-    code: str,
-    db: Session = Depends(get_db),
-) -> RedirectResponse:
-    """See google_oauth_callback — same reasoning applies (must match
-    META_OAUTH_REDIRECT_URI exactly, no Authorization header available)."""
-    settings = get_settings()
-    client = db.get(Client, uuid.UUID(state))
-    if client is None:
-        raise HTTPException(status_code=404, detail="Client not found")
-
-    tokens = meta_oauth.exchange_code_for_tokens(code, http_client=httpx.Client())
-    client.meta_access_token_encrypted = encrypt_token(tokens.access_token)
-    db.commit()
-
-    record_audit_event(
-        db,
-        agency_id=client.agency_id,
-        client_id=client.id,
-        event_type="client.meta_connected",
-        payload={},
-    )
-    return RedirectResponse(f"{settings.frontend_base_url}/clients/{client.id}?connected=meta")
-
-
 @router.put("/{client_id}/google/ad-account", response_model=ClientResponse)
 def set_google_ad_account(
     client_id: uuid.UUID,
@@ -223,13 +137,12 @@ def set_google_ad_account(
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ) -> ClientResponse:
-    """The real OAuth callback only stores a refresh token — it has no way to know
-    which Google Ads customer ID the agency wants to push to (a Google account can
-    have access to many), so that has to be set explicitly, once a real connect has
-    already happened."""
     client = _get_owned_client(db, client_id, agency)
-    if client.google_refresh_token_encrypted is None:
-        raise HTTPException(status_code=409, detail="Connect Google Ads before setting a customer ID")
+    if agency.google_ads_refresh_token_encrypted is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Connect your Google Ads Manager Account in Settings first",
+        )
     client.google_ads_customer_id = body.customer_id
     db.commit()
     db.refresh(client)
@@ -243,11 +156,12 @@ def set_meta_ad_account(
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ) -> ClientResponse:
-    """See set_google_ad_account — same reasoning, the real Meta OAuth callback only
-    stores an access token, never which ad account to push to."""
     client = _get_owned_client(db, client_id, agency)
-    if client.meta_access_token_encrypted is None:
-        raise HTTPException(status_code=409, detail="Connect Meta before setting an ad account ID")
+    if agency.meta_access_token_encrypted is None:
+        raise HTTPException(
+            status_code=409,
+            detail="Connect your Meta Business Manager in Settings first",
+        )
     client.meta_ad_account_id = body.ad_account_id
     db.commit()
     db.refresh(client)
@@ -260,12 +174,14 @@ def google_demo_connect(
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ) -> dict[str, str]:
-    """Fakes a Google Ads OAuth connect for pilots without live Google Ads credentials
-    yet — used instead of google_oauth_start/callback when GOOGLE_ADS_CLIENT_ID isn't
-    configured (see /config/status)."""
+    """Pilot path without live Google Ads credentials — stamps a demo client Customer ID
+    and agency-level demo tokens so launch/push still exercise the pipeline."""
     client = _get_owned_client(db, client_id, agency)
     client.google_ads_customer_id = f"demo-{str(client_id)[:8]}"
-    client.google_refresh_token_encrypted = encrypt_token("demo-google-refresh-token")
+    if agency.google_ads_refresh_token_encrypted is None:
+        agency.google_ads_refresh_token_encrypted = encrypt_token("demo-google-refresh-token")
+    if agency.google_ads_login_customer_id is None:
+        agency.google_ads_login_customer_id = "demo-mcc"
     db.commit()
 
     record_audit_event(
@@ -284,12 +200,11 @@ def meta_demo_connect(
     db: Session = Depends(get_db),
     agency: Agency = Depends(get_current_agency),
 ) -> dict[str, str]:
-    """Fakes a Meta OAuth connect for pilots without live Meta app credentials yet —
-    used instead of meta_oauth_start/callback when META_APP_ID isn't configured (see
-    /config/status)."""
+    """Pilot path without live Meta credentials — see google_demo_connect."""
     client = _get_owned_client(db, client_id, agency)
     client.meta_ad_account_id = f"demo-{str(client_id)[:8]}"
-    client.meta_access_token_encrypted = encrypt_token("demo-meta-access-token")
+    if agency.meta_access_token_encrypted is None:
+        agency.meta_access_token_encrypted = encrypt_token("demo-meta-access-token")
     db.commit()
 
     record_audit_event(

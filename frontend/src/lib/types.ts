@@ -240,8 +240,9 @@ export interface ApiClient {
   setBrandVoice(clientId: string, brandVoice: BrandVoiceInput): Promise<BrandVoiceProfile>
   connectGoogleDemo(clientId: string): Promise<void>
   connectMetaDemo(clientId: string): Promise<void>
-  getGoogleOAuthUrl(clientId: string): Promise<string>
-  getMetaOAuthUrl(clientId: string): Promise<string>
+  getAgencyGoogleOAuthUrl(): Promise<string>
+  getAgencyMetaOAuthUrl(): Promise<string>
+  setGoogleManagerAccount(loginCustomerId: string): Promise<void>
   setGoogleAdAccount(clientId: string, customerId: string): Promise<Client>
   setMetaAdAccount(clientId: string, adAccountId: string): Promise<Client>
   uploadClientAsset(clientId: string, kind: 'logo' | 'image', file: File): Promise<ClientAsset>

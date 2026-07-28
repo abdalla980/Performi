@@ -508,14 +508,18 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
       await post(`/clients/${clientId}/meta/demo-connect`)
     },
 
-    async getGoogleOAuthUrl(clientId: string): Promise<string> {
-      const raw = await get<RawOAuthAuthorizeUrl>(`/clients/${clientId}/google/oauth/start`)
+    async getAgencyGoogleOAuthUrl(): Promise<string> {
+      const raw = await get<RawOAuthAuthorizeUrl>('/agency/google/oauth/start')
       return raw.authorize_url
     },
 
-    async getMetaOAuthUrl(clientId: string): Promise<string> {
-      const raw = await get<RawOAuthAuthorizeUrl>(`/clients/${clientId}/meta/oauth/start`)
+    async getAgencyMetaOAuthUrl(): Promise<string> {
+      const raw = await get<RawOAuthAuthorizeUrl>('/agency/meta/oauth/start')
       return raw.authorize_url
+    },
+
+    async setGoogleManagerAccount(loginCustomerId: string): Promise<void> {
+      await put('/agency/google/manager-account', { login_customer_id: loginCustomerId })
     },
 
     async setGoogleAdAccount(clientId: string, customerId: string): Promise<Client> {
