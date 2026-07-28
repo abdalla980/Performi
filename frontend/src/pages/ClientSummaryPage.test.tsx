@@ -51,7 +51,7 @@ const CLIENT: ClientDetail = {
   googleConnected: false,
   metaConnected: false,
   logoUrl: null,
-  brandVoice: { id: 'bv-1', clientId: 'client-1', tone: 'warm and friendly', bannedTerms: [], requiredDisclaimers: [], approvedOffers: [] },
+  brandVoice: { id: 'bv-1', clientId: 'client-1', tone: 'warm and friendly', bannedTerms: [], requiredDisclaimers: [], approvedOffers: [], sitelinks: [] },
   assets: [],
 }
 

@@ -2,13 +2,15 @@ from datetime import date
 
 import pytest
 
-from app.schemas.google_plan import GoogleAdGroup, GoogleCampaignPlan, GoogleKeyword
+from app.schemas.google_plan import GoogleAdGroup, GoogleCampaignPlan, GoogleKeyword, Sitelink
 from app.services.google_ads_client import RealGoogleAdsPushClient
 
 
 class _MutateResult:
-    def __init__(self, resource_name):
-        self.results = [type("Result", (), {"resource_name": resource_name})()]
+    def __init__(self, resource_names):
+        if isinstance(resource_names, str):
+            resource_names = [resource_names]
+        self.results = [type("Result", (), {"resource_name": name})() for name in resource_names]
 
 
 class _FakeService:
@@ -16,6 +18,7 @@ class _FakeService:
 
     def __init__(self):
         self.calls = []
+        self._asset_counter = 0
 
     def _record(self, name, customer_id, operations):
         self.calls.append((name, customer_id, list(operations)))
@@ -44,6 +47,18 @@ class _FakeService:
         self._record("mutate_ad_group_ads", customer_id, operations)
         return _MutateResult("customers/123/adGroupAds/1")
 
+    def mutate_assets(self, customer_id, operations):
+        self._record("mutate_assets", customer_id, operations)
+        names = []
+        for _ in operations:
+            self._asset_counter += 1
+            names.append(f"customers/123/assets/{self._asset_counter}")
+        return _MutateResult(names)
+
+    def mutate_campaign_assets(self, customer_id, operations):
+        self._record("mutate_campaign_assets", customer_id, operations)
+        return _MutateResult("customers/123/campaignAssets/1")
+
 
 class _FakeGoogleAdsClient:
     """Builds real proto-plus message types (so field-name typos still fail) while
@@ -56,6 +71,7 @@ class _FakeGoogleAdsClient:
         from google.ads.googleads.v24.enums.types.advertising_channel_type import (
             AdvertisingChannelTypeEnum,
         )
+        from google.ads.googleads.v24.enums.types.asset_field_type import AssetFieldTypeEnum
         from google.ads.googleads.v24.enums.types.campaign_status import CampaignStatusEnum
         from google.ads.googleads.v24.enums.types.keyword_match_type import KeywordMatchTypeEnum
         from google.ads.googleads.v24.services.types.ad_group_ad_service import AdGroupAdOperation
@@ -63,6 +79,10 @@ class _FakeGoogleAdsClient:
             AdGroupCriterionOperation,
         )
         from google.ads.googleads.v24.services.types.ad_group_service import AdGroupOperation
+        from google.ads.googleads.v24.services.types.asset_service import AssetOperation
+        from google.ads.googleads.v24.services.types.campaign_asset_service import (
+            CampaignAssetOperation,
+        )
         from google.ads.googleads.v24.services.types.campaign_budget_service import (
             CampaignBudgetOperation,
         )
@@ -79,6 +99,8 @@ class _FakeGoogleAdsClient:
             "AdGroupCriterionOperation": AdGroupCriterionOperation,
             "AdGroupAdOperation": AdGroupAdOperation,
             "AdTextAsset": AdTextAsset,
+            "AssetOperation": AssetOperation,
+            "CampaignAssetOperation": CampaignAssetOperation,
         }
         self.enums = type(
             "Enums",
@@ -87,6 +109,7 @@ class _FakeGoogleAdsClient:
                 "AdvertisingChannelTypeEnum": AdvertisingChannelTypeEnum.AdvertisingChannelType,
                 "CampaignStatusEnum": CampaignStatusEnum.CampaignStatus,
                 "KeywordMatchTypeEnum": KeywordMatchTypeEnum.KeywordMatchType,
+                "AssetFieldTypeEnum": AssetFieldTypeEnum.AssetFieldType,
             },
         )()
 
@@ -156,6 +179,68 @@ def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
     ]
     assert [asset.text for asset in rsa.descriptions] == ["Visit today.", "Baked fresh every morning."]
     assert list(ad_ops[0].create.ad.final_urls) == ["https://example.com/bakery"]
+
+
+def test_push_honors_per_keyword_match_types(monkeypatch):
+    fake_client = _FakeGoogleAdsClient()
+    monkeypatch.setattr(
+        "google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client
+    )
+
+    RealGoogleAdsPushClient().push(
+        _plan(
+            ad_groups=[
+                GoogleAdGroup(
+                    name="Primary",
+                    keywords=[
+                        GoogleKeyword(text="exact bakery", match_type="exact"),
+                        GoogleKeyword(text="broad bakery", match_type="broad"),
+                    ],
+                    headlines=["Fresh Pastries Daily", "Austin's Best Bakery", "Order Online Now"],
+                    descriptions=["Visit today.", "Baked fresh every morning."],
+                )
+            ]
+        ),
+        refresh_token="rt",
+        customer_id="123",
+    )
+
+    keyword_ops = next(ops for name, _, ops in fake_client.service.calls if name == "mutate_ad_group_criteria")
+    by_text = {op.create.keyword.text: op.create.keyword.match_type for op in keyword_ops}
+    assert by_text["exact bakery"] == fake_client.enums.KeywordMatchTypeEnum.EXACT
+    assert by_text["broad bakery"] == fake_client.enums.KeywordMatchTypeEnum.BROAD
+
+
+def test_push_creates_extension_assets_when_present(monkeypatch):
+    fake_client = _FakeGoogleAdsClient()
+    monkeypatch.setattr(
+        "google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client
+    )
+
+    RealGoogleAdsPushClient().push(
+        _plan(
+            callouts=["Free Shipping"],
+            structured_snippets={"Services": ["Repair", "Install"]},
+            sitelinks=[Sitelink(text="Menu", url="https://example.com/menu", description="See our menu")],
+        ),
+        refresh_token="rt",
+        customer_id="123",
+    )
+
+    calls_by_name = {name: ops for name, _, ops in fake_client.service.calls}
+    assert "mutate_assets" in calls_by_name
+    assert "mutate_campaign_assets" in calls_by_name
+    asset_ops = calls_by_name["mutate_assets"]
+    assert asset_ops[0].create.callout_asset.callout_text == "Free Shipping"
+    assert asset_ops[1].create.structured_snippet_asset.header == "Services"
+    assert list(asset_ops[1].create.structured_snippet_asset.values) == ["Repair", "Install"]
+    assert asset_ops[2].create.sitelink_asset.link_text == "Menu"
+    assert list(asset_ops[2].create.final_urls) == ["https://example.com/menu"]
+
+    campaign_asset_ops = calls_by_name["mutate_campaign_assets"]
+    assert campaign_asset_ops[0].create.field_type == fake_client.enums.AssetFieldTypeEnum.CALLOUT
+    assert campaign_asset_ops[1].create.field_type == fake_client.enums.AssetFieldTypeEnum.STRUCTURED_SNIPPET
+    assert campaign_asset_ops[2].create.field_type == fake_client.enums.AssetFieldTypeEnum.SITELINK
 
 
 def test_push_sets_campaign_end_date_when_present(monkeypatch):

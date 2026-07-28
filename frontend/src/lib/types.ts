@@ -58,6 +58,7 @@ export interface BrandVoiceProfile {
   bannedTerms: string[]
   requiredDisclaimers: string[]
   approvedOffers: string[]
+  sitelinks: Sitelink[]
 }
 
 export interface BrandVoiceInput {
@@ -65,6 +66,7 @@ export interface BrandVoiceInput {
   bannedTerms: string[]
   requiredDisclaimers: string[]
   approvedOffers: string[]
+  sitelinks: Sitelink[]
 }
 
 export interface Client {

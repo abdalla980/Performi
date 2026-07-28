@@ -89,6 +89,7 @@ interface RawBrandVoice {
   banned_terms: string[]
   required_disclaimers: string[]
   approved_offers: string[]
+  sitelinks?: RawSitelink[]
 }
 
 interface RawClient {
@@ -281,6 +282,11 @@ function toBrandVoice(raw: RawBrandVoice): BrandVoiceProfile {
     bannedTerms: raw.banned_terms,
     requiredDisclaimers: raw.required_disclaimers,
     approvedOffers: raw.approved_offers,
+    sitelinks: (raw.sitelinks ?? []).map((link) => ({
+      text: link.text,
+      url: link.url,
+      description: link.description,
+    })),
   }
 }
 
@@ -485,6 +491,11 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
         banned_terms: brandVoice.bannedTerms,
         required_disclaimers: brandVoice.requiredDisclaimers,
         approved_offers: brandVoice.approvedOffers,
+        sitelinks: brandVoice.sitelinks.map((link) => ({
+          text: link.text,
+          url: link.url,
+          description: link.description,
+        })),
       })
       return toBrandVoice(raw)
     },

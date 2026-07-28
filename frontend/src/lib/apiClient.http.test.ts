@@ -138,6 +138,7 @@ describe('createHttpApiClient', () => {
       bannedTerms: ['cheap'],
       requiredDisclaimers: [],
       approvedOffers: [],
+      sitelinks: [],
     })
   })
 
@@ -171,6 +172,7 @@ describe('createHttpApiClient', () => {
       bannedTerms: ['cheap'],
       requiredDisclaimers: ['Results vary.'],
       approvedOffers: [],
+      sitelinks: [{ text: 'Menu', url: 'https://example.com/menu', description: null }],
     })
 
     expect(fetchFn).toHaveBeenCalledWith(
@@ -182,6 +184,7 @@ describe('createHttpApiClient', () => {
           banned_terms: ['cheap'],
           required_disclaimers: ['Results vary.'],
           approved_offers: [],
+          sitelinks: [{ text: 'Menu', url: 'https://example.com/menu', description: null }],
         }),
       }),
     )

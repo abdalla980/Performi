@@ -54,6 +54,7 @@ describe('ClientDetailPage', () => {
         bannedTerms: ['cheap', 'discount'],
         requiredDisclaimers: [],
         approvedOffers: [],
+        sitelinks: [],
       }),
     )
 

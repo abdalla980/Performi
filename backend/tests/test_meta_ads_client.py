@@ -1,3 +1,4 @@
+import httpx
 import pytest
 
 from app.config import get_settings
@@ -65,9 +66,11 @@ def _patch_sdk(monkeypatch, recorder: _Recorder):
         recorder.record("create_ad_set", params)
         return {AdSet.Field.id: "adset-1"}
 
+    creative_ids = iter(["creative-1", "creative-2", "creative-3"])
+
     def fake_create_ad_creative(self, fields=None, params=None, **kwargs):
         recorder.record("create_ad_creative", params)
-        return {AdCreative.Field.id: "creative-1"}
+        return {AdCreative.Field.id: next(creative_ids)}
 
     def fake_create_ad(self, fields=None, params=None, **kwargs):
         recorder.record("create_ad", params)
@@ -79,9 +82,36 @@ def _patch_sdk(monkeypatch, recorder: _Recorder):
     monkeypatch.setattr(AdAccount, "create_ad", fake_create_ad)
 
 
+def _patch_interest_http(monkeypatch, payload=None):
+    payload = payload if payload is not None else {"data": [{"id": "6001", "name": "Bakeries"}]}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return payload
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def get(self, *args, **kwargs):
+            return FakeResponse()
+
+    monkeypatch.setattr(httpx, "Client", FakeClient)
+
+
 def test_push_creates_campaign_adset_creative_and_ad_for_traffic(monkeypatch, meta_configured):
     recorder = _Recorder()
     _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
     from facebook_business.adobjects.campaign import Campaign
 
     result = RealMetaAdsPushClient().push(_plan(), access_token="tok", ad_account_id="act_1")
@@ -99,6 +129,8 @@ def test_push_creates_campaign_adset_creative_and_ad_for_traffic(monkeypatch, me
     assert ad_set_params[AdSet.Field.daily_budget] == 1650
     assert ad_set_params[AdSet.Field.optimization_goal] == AdSet.OptimizationGoal.link_clicks
     assert ad_set_params[AdSet.Field.targeting]["geo_locations"] == {"countries": ["US"]}
+    assert ad_set_params[AdSet.Field.targeting]["age_min"] == 18
+    assert ad_set_params[AdSet.Field.targeting]["age_max"] == 65
 
     from facebook_business.adobjects.adcreative import AdCreative
 
@@ -116,9 +148,75 @@ def test_push_creates_campaign_adset_creative_and_ad_for_traffic(monkeypatch, me
     assert ad_params[Ad.Field.creative] == {"creative_id": "creative-1"}
 
 
+def test_push_uses_segment_age_and_resolved_interests(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+    from facebook_business.adobjects.adset import AdSet
+
+    RealMetaAdsPushClient().push(
+        _plan(
+            ad_sets=[
+                MetaAdSet(
+                    name="Primary",
+                    daily_budget_cents=1650,
+                    targeting_description="Home bakers",
+                    age_min=25,
+                    age_max=54,
+                    interests=["bakery"],
+                    creatives=[
+                        MetaCreative(headline="Fresh", body="Visit.", call_to_action="Learn More"),
+                    ],
+                )
+            ]
+        ),
+        access_token="tok",
+        ad_account_id="act_1",
+    )
+
+    targeting = dict(recorder.calls)["create_ad_set"][AdSet.Field.targeting]
+    assert targeting["age_min"] == 25
+    assert targeting["age_max"] == 54
+    assert targeting["flexible_spec"] == [{"interests": [{"id": "6001", "name": "Bakeries"}]}]
+
+
+def test_push_creates_one_ad_per_creative(monkeypatch, meta_configured):
+    recorder = _Recorder()
+    _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
+
+    RealMetaAdsPushClient().push(
+        _plan(
+            ad_sets=[
+                MetaAdSet(
+                    name="Primary",
+                    daily_budget_cents=1650,
+                    targeting_description="Adults",
+                    creatives=[
+                        MetaCreative(headline="A", body="One", call_to_action="Learn More"),
+                        MetaCreative(headline="B", body="Two", call_to_action="Learn More"),
+                    ],
+                )
+            ]
+        ),
+        access_token="tok",
+        ad_account_id="act_1",
+    )
+
+    creative_calls = [params for name, params in recorder.calls if name == "create_ad_creative"]
+    ad_calls = [params for name, params in recorder.calls if name == "create_ad"]
+    assert len(creative_calls) == 2
+    assert len(ad_calls) == 2
+    assert creative_calls[0]["name"] == "Primary Creative 1"
+    assert creative_calls[1]["name"] == "Primary Creative 2"
+    assert ad_calls[0]["name"] == "Primary Ad 1"
+    assert ad_calls[1]["name"] == "Primary Ad 2"
+
+
 def test_push_supports_awareness_objective(monkeypatch, meta_configured):
     recorder = _Recorder()
     _patch_sdk(monkeypatch, recorder)
+    _patch_interest_http(monkeypatch)
     from facebook_business.adobjects.campaign import Campaign
     from facebook_business.adobjects.adset import AdSet
 

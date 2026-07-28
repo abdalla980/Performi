@@ -19,6 +19,61 @@ class FakeGoogleAdsPushClient:
         return self._external_id
 
 
+def _attach_extension_assets(gclient, customer_id: str, campaign_resource: str, plan: GoogleCampaignPlan) -> None:
+    """Create callout / structured snippet / sitelink assets and link them to the campaign."""
+    asset_service = gclient.get_service("AssetService")
+    campaign_asset_service = gclient.get_service("CampaignAssetService")
+    asset_ops = []
+
+    for callout in plan.callouts:
+        op = gclient.get_type("AssetOperation")
+        op.create.callout_asset.callout_text = callout
+        asset_ops.append(("CALLOUT", op))
+
+    for header, values in plan.structured_snippets.items():
+        if not values:
+            continue
+        op = gclient.get_type("AssetOperation")
+        op.create.structured_snippet_asset.header = header
+        op.create.structured_snippet_asset.values.extend(values)
+        asset_ops.append(("STRUCTURED_SNIPPET", op))
+
+    for sitelink in plan.sitelinks:
+        op = gclient.get_type("AssetOperation")
+        op.create.sitelink_asset.link_text = sitelink.text
+        if sitelink.description:
+            # Split optional description across description1/description2 when long.
+            op.create.sitelink_asset.description1 = sitelink.description[:35]
+            if len(sitelink.description) > 35:
+                op.create.sitelink_asset.description2 = sitelink.description[35:70]
+        op.create.final_urls.append(sitelink.url)
+        asset_ops.append(("SITELINK", op))
+
+    if not asset_ops:
+        return
+
+    field_type_enum = gclient.enums.AssetFieldTypeEnum
+    field_type_map = {
+        "CALLOUT": field_type_enum.CALLOUT,
+        "STRUCTURED_SNIPPET": field_type_enum.STRUCTURED_SNIPPET,
+        "SITELINK": field_type_enum.SITELINK,
+    }
+
+    created = asset_service.mutate_assets(
+        customer_id=customer_id, operations=[op for _, op in asset_ops]
+    ).results
+
+    campaign_asset_ops = []
+    for (field_type_name, _), result in zip(asset_ops, created):
+        ca_op = gclient.get_type("CampaignAssetOperation")
+        ca_op.create.campaign = campaign_resource
+        ca_op.create.asset = result.resource_name
+        ca_op.create.field_type = field_type_map[field_type_name]
+        campaign_asset_ops.append(ca_op)
+
+    campaign_asset_service.mutate_campaign_assets(customer_id=customer_id, operations=campaign_asset_ops)
+
+
 class RealGoogleAdsPushClient:
     """Thin wrapper around the official google-ads SDK. Only exercised against a real
     Google Ads sandbox account, never by the fast unit test suite."""
@@ -45,6 +100,12 @@ class RealGoogleAdsPushClient:
         ad_group_service = gclient.get_service("AdGroupService")
         ad_group_criterion_service = gclient.get_service("AdGroupCriterionService")
         ad_group_ad_service = gclient.get_service("AdGroupAdService")
+
+        match_type_map = {
+            "exact": gclient.enums.KeywordMatchTypeEnum.EXACT,
+            "phrase": gclient.enums.KeywordMatchTypeEnum.PHRASE,
+            "broad": gclient.enums.KeywordMatchTypeEnum.BROAD,
+        }
 
         budget_op = gclient.get_type("CampaignBudgetOperation")
         budget_op.create.name = f"{plan.campaign_name} Budget"
@@ -79,6 +140,8 @@ class RealGoogleAdsPushClient:
                 customer_id=customer_id, operations=negative_ops
             )
 
+        _attach_extension_assets(gclient, customer_id, campaign_result.resource_name, plan)
+
         for group in plan.ad_groups:
             group_op = gclient.get_type("AdGroupOperation")
             group_op.create.name = group.name
@@ -95,7 +158,9 @@ class RealGoogleAdsPushClient:
                     criterion_op = gclient.get_type("AdGroupCriterionOperation")
                     criterion_op.create.ad_group = group_resource
                     criterion_op.create.keyword.text = keyword.text
-                    criterion_op.create.keyword.match_type = gclient.enums.KeywordMatchTypeEnum.PHRASE
+                    criterion_op.create.keyword.match_type = match_type_map.get(
+                        keyword.match_type, gclient.enums.KeywordMatchTypeEnum.PHRASE
+                    )
                     keyword_ops.append(criterion_op)
                 ad_group_criterion_service.mutate_ad_group_criteria(
                     customer_id=customer_id, operations=keyword_ops
