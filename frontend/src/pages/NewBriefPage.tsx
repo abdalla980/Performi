@@ -231,8 +231,13 @@ export function NewBriefPage() {
                       </div>
                       <div className="flex flex-col gap-2">
                         <Label htmlFor={`goals-${client.id}`}>Goals</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Say what success looks like — e.g. &quot;book more calls,&quot; &quot;drive store visits,&quot;
+                          &quot;grow online sales,&quot; or &quot;build brand awareness.&quot;
+                        </p>
                         <Input
                           id={`goals-${client.id}`}
+                          placeholder="Drive foot traffic to our downtown location"
                           value={row.goals}
                           onChange={(event) => updateRow(client.id, 'goals', event.target.value)}
                         />
