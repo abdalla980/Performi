@@ -8,6 +8,7 @@ import type { CampaignDraftStatus, Platform } from '../lib/types'
 import { cn } from '../lib/utils'
 import { Alert } from '../components/ui/alert'
 import { Avatar } from '../components/ui/avatar'
+import { GettingStartedCard } from '../components/GettingStartedCard'
 import { Badge } from '../components/ui/badge'
 import { buttonVariants } from '../components/ui/button'
 import { EmptyState } from '../components/ui/empty-state'
@@ -92,6 +93,8 @@ export function CampaignsPage() {
           New brief
         </Link>
       </div>
+
+      <GettingStartedCard />
 
       {!hasNoClients && !hasNoDraftsYet && (
         <div role="region" aria-label="Campaign summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">

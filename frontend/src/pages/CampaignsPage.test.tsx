@@ -49,6 +49,14 @@ const ONE_CLIENT = [
 ]
 
 describe('CampaignsPage', () => {
+  it('shows the getting-started helper, pointing new agencies at Activity', async () => {
+    const apiClient = createFakeApiClient({ listBriefs: async () => DRAFTS, listClients: async () => ONE_CLIENT })
+    renderWithProviders(<CampaignsPage />, { apiClient })
+
+    expect(await screen.findByText('Getting started with Performi')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /check activity/i })).toHaveAttribute('href', '/audit')
+  })
+
   it('renders all drafts and filters by status', async () => {
     const apiClient = createFakeApiClient({ listBriefs: async () => DRAFTS, listClients: async () => ONE_CLIENT })
     renderWithProviders(<CampaignsPage />, { apiClient })

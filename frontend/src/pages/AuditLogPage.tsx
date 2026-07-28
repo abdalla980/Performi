@@ -24,8 +24,10 @@ export function AuditLogPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-display text-xl font-semibold text-foreground">Audit log</h1>
-        <p className="text-sm text-muted-foreground">Every action taken across your clients, newest first.</p>
+        <h1 className="font-display text-xl font-semibold text-foreground">Activity</h1>
+        <p className="text-sm text-muted-foreground">
+          Everything that's happened across your clients — approvals, launches, connections — newest first.
+        </p>
       </div>
 
       {isPending && <p className="text-sm text-muted-foreground">Loading audit log…</p>}

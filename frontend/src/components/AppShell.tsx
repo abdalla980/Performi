@@ -11,7 +11,7 @@ import { NotificationsMenu } from './NotificationsMenu'
 const NAV_ITEMS = [
   { to: '/', label: 'Campaigns', icon: ListChecks, end: true },
   { to: '/clients', label: 'Clients', icon: Users, end: false },
-  { to: '/audit', label: 'Audit Log', icon: ClipboardList, end: false },
+  { to: '/audit', label: 'Activity', icon: ClipboardList, end: false },
   { to: '/settings', label: 'Settings', icon: Settings, end: false },
 ]
 
