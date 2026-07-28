@@ -34,7 +34,7 @@ def run_guardrails(
     brand_voice = draft.brief.client.brand_voice_profile
     settings = get_settings()
 
-    flags = run_rule_checks(ir, brand_voice)
+    flags = run_rule_checks(ir, brand_voice, brief=draft.brief)
     if settings.anthropic_api_key:
         anthropic_client = Anthropic(api_key=settings.anthropic_api_key)
         flags += run_semantic_check(ir, brand_voice, anthropic_client=anthropic_client)

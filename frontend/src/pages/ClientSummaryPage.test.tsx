@@ -27,6 +27,9 @@ const DRAFT: DraftDetail = {
   competitors: 'Big Bakery Co',
   uniqueSellingPoints: 'Fresh daily',
   excludedKeywords: ['free'],
+  servicesOffered: [],
+  trustSignals: [],
+  audienceHints: [],
   googlePlan: emptyGooglePlan({
     campaignName: 'Bakery Campaign',
     dailyBudgetMicros: 16_000_000,

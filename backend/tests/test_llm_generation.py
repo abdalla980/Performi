@@ -129,11 +129,37 @@ def test_generate_campaign_ir_overrides_facts_from_brief():
         website_url="https://acmebakery.test",
         end_date=date(2026, 12, 31),
         excluded_keywords=["free", "cheap"],
+        trust_signals=["Licensed & Insured", "Free Estimates"],
+        services_offered=["Custom cakes", "Catering"],
+        audience_hints=[{"name": "Wedding planners", "description": "Need reliable cake delivery"}],
     )
-    fake_client = FakeAnthropicClient(json.dumps(make_campaign_ir_json(end_date="2099-01-01")))
+    payload = make_campaign_ir_json(
+        end_date="2099-01-01",
+        callouts=["24/7 Support", "Invented Claim"],
+        structured_snippets={"Services": ["Fake Service"]},
+        audience_segments=[
+            {
+                "name": "LLM Invented Name",
+                "description": "LLM invented description",
+                "keywords": [{"text": "wedding cake", "match_type": "phrase"}],
+                "ad_copy": [{"headline": "Wedding Cakes", "description": "Order today."}],
+            }
+        ],
+    )
+    fake_client = FakeAnthropicClient(json.dumps(payload))
 
     ir = generate_campaign_ir(brief, anthropic_client=fake_client)
 
     assert ir.end_date == date(2026, 12, 31)
     assert ir.website_url == "https://acmebakery.test"
     assert ir.negative_keywords == ["free", "cheap"]
+    assert ir.callouts == ["Licensed & Insured", "Free Estimates"]
+    assert ir.structured_snippets == {"Services": ["Custom cakes", "Catering"]}
+    assert ir.audience_segments[0].name == "Wedding planners"
+    assert ir.audience_segments[0].description == "Need reliable cake delivery"
+    assert [k.text for k in ir.audience_segments[0].keywords] == ["wedding cake"]
+
+    prompt = fake_client.last_prompt["messages"][0]["content"]
+    assert "Licensed & Insured" in prompt
+    assert "Custom cakes" in prompt
+    assert "Wedding planners" in prompt

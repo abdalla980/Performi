@@ -107,6 +107,9 @@ export interface BriefInput {
   competitors?: string
   uniqueSellingPoints?: string
   excludedKeywords?: string[]
+  servicesOffered?: string[]
+  trustSignals?: string[]
+  audienceHints?: Array<{ name: string; description: string }>
 }
 
 export type CampaignDraftStatus =
@@ -178,6 +181,9 @@ export interface DraftDetail extends DraftSummary {
   competitors: string | null
   uniqueSellingPoints: string | null
   excludedKeywords: string[]
+  servicesOffered: string[]
+  trustSignals: string[]
+  audienceHints: Array<{ name: string; description: string }>
   googlePlan: GoogleCampaignPlan | null
   metaPlan: MetaCampaignPlan | null
   guardrail: GuardrailReport | null

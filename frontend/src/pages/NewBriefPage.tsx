@@ -25,6 +25,9 @@ interface BriefRow {
   competitors: string
   uniqueSellingPoints: string
   excludedKeywords: string
+  servicesOffered: string
+  trustSignals: string
+  audienceHints: Array<{ name: string; description: string }>
 }
 
 const EMPTY_ROW: BriefRow = {
@@ -40,6 +43,17 @@ const EMPTY_ROW: BriefRow = {
   competitors: '',
   uniqueSellingPoints: '',
   excludedKeywords: '',
+  servicesOffered: '',
+  trustSignals: '',
+  audienceHints: [],
+}
+
+function toCommaList(value: string): string[] | undefined {
+  if (!value) return undefined
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
 }
 
 function toBriefInput(clientId: string, row: BriefRow): BriefInput {
@@ -59,12 +73,15 @@ function toBriefInput(clientId: string, row: BriefRow): BriefInput {
     platforms,
     competitors: row.competitors || undefined,
     uniqueSellingPoints: row.uniqueSellingPoints || undefined,
-    excludedKeywords: row.excludedKeywords
-      ? row.excludedKeywords
-          .split(',')
-          .map((keyword) => keyword.trim())
-          .filter(Boolean)
-      : undefined,
+    excludedKeywords: toCommaList(row.excludedKeywords),
+    servicesOffered: toCommaList(row.servicesOffered),
+    trustSignals: toCommaList(row.trustSignals),
+    audienceHints: (() => {
+      const hints = row.audienceHints
+        .filter((hint) => hint.name.trim() && hint.description.trim())
+        .map((hint) => ({ name: hint.name.trim(), description: hint.description.trim() }))
+      return hints.length > 0 ? hints : undefined
+    })(),
   }
 }
 
@@ -107,6 +124,12 @@ export function NewBriefPage() {
         competitors: duplicateSource.competitors ?? '',
         uniqueSellingPoints: duplicateSource.uniqueSellingPoints ?? '',
         excludedKeywords: duplicateSource.excludedKeywords.join(', '),
+        servicesOffered: duplicateSource.servicesOffered.join(', '),
+        trustSignals: duplicateSource.trustSignals.join(', '),
+        audienceHints: duplicateSource.audienceHints.map((hint) => ({
+          name: hint.name,
+          description: hint.description,
+        })),
       },
     }))
   }, [duplicateSource])
@@ -291,6 +314,96 @@ export function NewBriefPage() {
                         value={row.excludedKeywords}
                         onChange={(event) => updateRow(client.id, 'excludedKeywords', event.target.value)}
                       />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={`services-${client.id}`}>Services offered (comma-separated)</Label>
+                      <Input
+                        id={`services-${client.id}`}
+                        placeholder="Drain repair, Water heater installation, Emergency plumbing"
+                        value={row.servicesOffered}
+                        onChange={(event) => updateRow(client.id, 'servicesOffered', event.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor={`trust-${client.id}`}>Trust signals / credentials (comma-separated)</Label>
+                      <Input
+                        id={`trust-${client.id}`}
+                        placeholder="Licensed & Insured, Free Estimates, 24/7 Service"
+                        value={row.trustSignals}
+                        onChange={(event) => updateRow(client.id, 'trustSignals', event.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <Label>Known customer types (optional)</Label>
+                        <p className="text-xs text-muted-foreground">
+                          Distinct audiences you actually serve — up to about 3 works best.
+                        </p>
+                      </div>
+                      {row.audienceHints.map((hint, index) => (
+                        <div
+                          key={index}
+                          className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_1fr_auto]"
+                        >
+                          <Input
+                            aria-label={`Customer type ${index + 1} name`}
+                            placeholder="e.g. Homeowners with emergencies"
+                            value={hint.name}
+                            onChange={(event) =>
+                              updateRow(
+                                client.id,
+                                'audienceHints',
+                                row.audienceHints.map((rowHint, i) =>
+                                  i === index ? { ...rowHint, name: event.target.value } : rowHint,
+                                ),
+                              )
+                            }
+                          />
+                          <Input
+                            aria-label={`Customer type ${index + 1} description`}
+                            placeholder="Who they are and what they need"
+                            value={hint.description}
+                            onChange={(event) =>
+                              updateRow(
+                                client.id,
+                                'audienceHints',
+                                row.audienceHints.map((rowHint, i) =>
+                                  i === index ? { ...rowHint, description: event.target.value } : rowHint,
+                                ),
+                              )
+                            }
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() =>
+                              updateRow(
+                                client.id,
+                                'audienceHints',
+                                row.audienceHints.filter((_, i) => i !== index),
+                              )
+                            }
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      ))}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="self-start"
+                        onClick={() =>
+                          updateRow(client.id, 'audienceHints', [
+                            ...row.audienceHints,
+                            { name: '', description: '' },
+                          ])
+                        }
+                      >
+                        Add customer type
+                      </Button>
                     </div>
 
                     <div className="flex flex-col gap-2">

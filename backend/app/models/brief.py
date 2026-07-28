@@ -23,6 +23,10 @@ class Brief(Base):
     competitors: Mapped[str | None] = mapped_column(String(1000), default=None)
     unique_selling_points: Mapped[str | None] = mapped_column(String(1000), default=None)
     excluded_keywords: Mapped[list[str]] = mapped_column(JSON, default=list)
+    # Agency-entered facts — force-passed into IR extensions / segment names (not LLM-invented).
+    services_offered: Mapped[list] = mapped_column(JSON, default=list)
+    trust_signals: Mapped[list] = mapped_column(JSON, default=list)
+    audience_hints: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc))
 
     client: Mapped["Client"] = relationship()

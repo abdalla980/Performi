@@ -96,7 +96,42 @@ def test_rule_checks_warns_on_empty_segment_ad_copy():
     assert any(f.code == "empty_segment_ad_copy" for f in flags)
 
 
-def test_semantic_check_parses_llm_flags():
+def test_rule_checks_warns_on_unverified_extensions():
+    from app.models.brief import Brief
+
+    ir = make_campaign_ir(callouts=["24/7 Support"], structured_snippets={"Services": ["Repair"]})
+    brief = Brief(
+        client_id=None,
+        business_description="Plumbing",
+        budget_usd=500,
+        goals="Leads",
+        trust_signals=[],
+        services_offered=[],
+    )
+
+    flags = run_rule_checks(ir, brand_voice=None, brief=brief)
+    codes = {f.code for f in flags}
+    assert "unverified_callouts" in codes
+    assert "unverified_structured_snippets" in codes
+
+
+def test_rule_checks_skips_unverified_flags_when_facts_provided():
+    from app.models.brief import Brief
+
+    ir = make_campaign_ir(callouts=["Licensed & Insured"], structured_snippets={"Services": ["Repair"]})
+    brief = Brief(
+        client_id=None,
+        business_description="Plumbing",
+        budget_usd=500,
+        goals="Leads",
+        trust_signals=["Licensed & Insured"],
+        services_offered=["Repair"],
+    )
+
+    flags = run_rule_checks(ir, brand_voice=None, brief=brief)
+    codes = {f.code for f in flags}
+    assert "unverified_callouts" not in codes
+    assert "unverified_structured_snippets" not in codes
     fake_response = json.dumps(
         {"flags": [{"severity": "warn", "code": "off_brand_tone", "message": "Too casual for this client."}]}
     )

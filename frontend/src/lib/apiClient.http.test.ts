@@ -359,7 +359,17 @@ describe('createHttpApiClient', () => {
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify({
-          briefs: [{ client_id: 'client-1', business_description: 'Bakery', budget_usd: 500, goals: 'Traffic' }],
+          briefs: [
+            {
+              client_id: 'client-1',
+              business_description: 'Bakery',
+              budget_usd: 500,
+              goals: 'Traffic',
+              services_offered: [],
+              trust_signals: [],
+              audience_hints: [],
+            },
+          ],
         }),
       }),
     )
@@ -407,6 +417,9 @@ describe('createHttpApiClient', () => {
               competitors: 'Big Bakery Co',
               unique_selling_points: 'Family recipes since 1990',
               excluded_keywords: ['free', 'cheap'],
+              services_offered: [],
+              trust_signals: [],
+              audience_hints: [],
             },
           ],
         }),

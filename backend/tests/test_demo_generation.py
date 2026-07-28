@@ -119,3 +119,41 @@ def test_generate_demo_campaign_ir_passes_through_website_url_and_end_date():
 
     assert ir.website_url == "https://acmebakery.test"
     assert ir.end_date == date(2026, 12, 31)
+
+
+def test_generate_demo_campaign_ir_uses_agency_fact_fields():
+    brief = Brief(
+        client_id=None,
+        business_description="Local bakery in Austin",
+        budget_usd=600,
+        goals="Drive foot traffic",
+        trust_signals=["Family-Owned", "Fresh Daily"],
+        services_offered=["Pastries", "Custom cakes"],
+        audience_hints=[
+            {"name": "Locals", "description": "Nearby residents"},
+            {"name": "Tourists", "description": "Visitors looking for dessert"},
+        ],
+    )
+
+    ir = generate_demo_campaign_ir(brief, brand_voice=None)
+
+    assert ir.callouts == ["Family-Owned", "Fresh Daily"]
+    assert ir.structured_snippets == {"Services": ["Pastries", "Custom cakes"]}
+    assert [s.name for s in ir.audience_segments] == ["Locals", "Tourists"]
+    assert ir.audience_segments[0].description == "Nearby residents"
+
+
+def test_generate_demo_campaign_ir_keeps_empty_extensions_without_facts():
+    brief = Brief(
+        client_id=None,
+        business_description="Local bakery in Austin",
+        budget_usd=600,
+        goals="Drive foot traffic",
+    )
+
+    ir = generate_demo_campaign_ir(brief, brand_voice=None)
+
+    assert ir.callouts == []
+    assert ir.structured_snippets == {}
+    assert len(ir.audience_segments) == 1
+    assert ir.audience_segments[0].name == "Primary"

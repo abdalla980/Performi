@@ -72,21 +72,44 @@ def generate_demo_campaign_ir(brief: Brief, brand_voice: BrandVoiceProfile | Non
 
     excluded_lower = {keyword.lower() for keyword in excluded_keywords}
     keyword_texts = [keyword for keyword in _build_keywords(description) if keyword.lower() not in excluded_lower]
+    keywords = [KeywordEntry(text=kw) for kw in (keyword_texts or ["local business", "near me"])]
+    ad_copy = [AdCopyVariant(headline=headline, description=ad_description)]
 
-    segment = AudienceSegment(
-        name="Primary",
-        description=audience_description,
-        keywords=[KeywordEntry(text=kw) for kw in (keyword_texts or ["local business", "near me"])],
-        ad_copy=[AdCopyVariant(headline=headline, description=ad_description)],
-    )
+    if brief.audience_hints:
+        segments = []
+        for hint in brief.audience_hints:
+            name = hint["name"] if isinstance(hint, dict) else hint.name
+            hint_description = hint["description"] if isinstance(hint, dict) else hint.description
+            segments.append(
+                AudienceSegment(
+                    name=name,
+                    description=hint_description,
+                    keywords=list(keywords),
+                    ad_copy=list(ad_copy),
+                )
+            )
+    else:
+        segments = [
+            AudienceSegment(
+                name="Primary",
+                description=audience_description,
+                keywords=keywords,
+                ad_copy=ad_copy,
+            )
+        ]
+
+    callouts = list(brief.trust_signals) if brief.trust_signals else []
+    structured_snippets = {"Services": list(brief.services_offered)} if brief.services_offered else {}
 
     return CampaignIR(
         campaign_name=_strip_banned(f"{description.title()} — {objective.title()} Campaign", banned_terms),
         objective=objective,
         daily_budget_usd=daily_budget_usd,
         end_date=brief.end_date,
-        audience_segments=[segment],
+        audience_segments=segments,
         call_to_action=cta,
         website_url=brief.website_url,
         negative_keywords=list(excluded_keywords),
+        callouts=callouts,
+        structured_snippets=structured_snippets,
     )

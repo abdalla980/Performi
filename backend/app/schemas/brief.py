@@ -11,6 +11,11 @@ from app.schemas.meta_plan import MetaCampaignPlan
 from app.schemas.projection import ProjectedMetrics
 
 
+class AudienceHint(BaseModel):
+    name: str
+    description: str
+
+
 class BriefCreateRequest(BaseModel):
     client_id: uuid.UUID
     business_description: str
@@ -24,6 +29,9 @@ class BriefCreateRequest(BaseModel):
     competitors: str | None = None
     unique_selling_points: str | None = None
     excluded_keywords: list[str] = []
+    services_offered: list[str] = []
+    trust_signals: list[str] = []
+    audience_hints: list[AudienceHint] = []
 
 
 class BriefBatchCreateRequest(BaseModel):
@@ -63,6 +71,9 @@ class DraftDetailResponse(DraftSummaryResponse):
     competitors: str | None = None
     unique_selling_points: str | None = None
     excluded_keywords: list[str] = []
+    services_offered: list[str] = []
+    trust_signals: list[str] = []
+    audience_hints: list[AudienceHint] = []
     google_plan: GoogleCampaignPlan | None = None
     meta_plan: MetaCampaignPlan | None = None
     guardrail: GuardrailReportResponse | None = None

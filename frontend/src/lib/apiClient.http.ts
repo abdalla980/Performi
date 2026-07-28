@@ -173,6 +173,9 @@ interface RawDraftDetail extends RawDraftSummary {
   competitors: string | null
   unique_selling_points: string | null
   excluded_keywords: string[]
+  services_offered?: string[]
+  trust_signals?: string[]
+  audience_hints?: Array<{ name: string; description: string }>
   google_plan: RawGooglePlan | null
   meta_plan: RawMetaPlan | null
   guardrail: RawGuardrailReport | null
@@ -384,6 +387,12 @@ function toDraftDetail(raw: RawDraftDetail): DraftDetail {
     competitors: raw.competitors,
     uniqueSellingPoints: raw.unique_selling_points,
     excludedKeywords: raw.excluded_keywords,
+    servicesOffered: raw.services_offered ?? [],
+    trustSignals: raw.trust_signals ?? [],
+    audienceHints: (raw.audience_hints ?? []).map((hint) => ({
+      name: hint.name,
+      description: hint.description,
+    })),
     googlePlan: raw.google_plan ? toGooglePlan(raw.google_plan) : null,
     metaPlan: raw.meta_plan ? toMetaPlan(raw.meta_plan) : null,
     guardrail: raw.guardrail ? toGuardrailReport(raw.guardrail) : null,
@@ -567,6 +576,9 @@ export function createHttpApiClient({ baseUrl, getAuthToken, fetchFn = fetch }: 
           competitors: brief.competitors,
           unique_selling_points: brief.uniqueSellingPoints,
           excluded_keywords: brief.excludedKeywords,
+          services_offered: brief.servicesOffered ?? [],
+          trust_signals: brief.trustSignals ?? [],
+          audience_hints: brief.audienceHints ?? [],
         })),
       })
       return raw.map(toDraftSummary)

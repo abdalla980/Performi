@@ -63,6 +63,9 @@ def _draft_detail(db: Session, draft: CampaignDraft) -> DraftDetailResponse:
         competitors=draft.brief.competitors,
         unique_selling_points=draft.brief.unique_selling_points,
         excluded_keywords=draft.brief.excluded_keywords,
+        services_offered=draft.brief.services_offered or [],
+        trust_signals=draft.brief.trust_signals or [],
+        audience_hints=draft.brief.audience_hints or [],
         google_plan=GoogleCampaignPlan.model_validate(draft.google_plan_json) if draft.google_plan_json else None,
         meta_plan=MetaCampaignPlan.model_validate(draft.meta_plan_json) if draft.meta_plan_json else None,
         guardrail=GuardrailReportResponse(
@@ -111,6 +114,9 @@ def _create_one(body: BriefCreateRequest, db: Session, agency: Agency) -> Campai
         competitors=body.competitors,
         unique_selling_points=body.unique_selling_points,
         excluded_keywords=body.excluded_keywords,
+        services_offered=body.services_offered,
+        trust_signals=body.trust_signals,
+        audience_hints=[h.model_dump() for h in body.audience_hints],
     )
     db.add(brief)
     db.flush()

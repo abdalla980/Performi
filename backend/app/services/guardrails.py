@@ -2,6 +2,7 @@ import json
 
 from app.config import get_settings
 from app.models.brand_voice import BrandVoiceProfile
+from app.models.brief import Brief
 from app.schemas.campaign_ir import CampaignIR
 from app.schemas.guardrail import GuardrailFlag
 from app.services.llm_generation import strip_markdown_json_fence
@@ -16,7 +17,11 @@ _SEMANTIC_SYSTEM_PROMPT = (
 )
 
 
-def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> list[GuardrailFlag]:
+def run_rule_checks(
+    ir: CampaignIR,
+    brand_voice: BrandVoiceProfile | None,
+    brief: Brief | None = None,
+) -> list[GuardrailFlag]:
     flags: list[GuardrailFlag] = []
     all_ad_copy = [copy for segment in ir.audience_segments for copy in segment.ad_copy]
     all_keywords = [kw.text for segment in ir.audience_segments for kw in segment.keywords]
@@ -65,6 +70,31 @@ def run_rule_checks(ir: CampaignIR, brand_voice: BrandVoiceProfile | None) -> li
                 severity="warn",
                 code="keyword_overlaps_negative",
                 message=f"Generated keyword(s) {', '.join(overlap)} overlap with excluded/negative keywords.",
+            )
+        )
+
+    trust_signals = (brief.trust_signals if brief else None) or []
+    services_offered = (brief.services_offered if brief else None) or []
+    if ir.callouts and not trust_signals:
+        flags.append(
+            GuardrailFlag(
+                severity="warn",
+                code="unverified_callouts",
+                message=(
+                    "Callouts were AI-generated, not agency-provided — verify these claims "
+                    "are accurate before approving."
+                ),
+            )
+        )
+    if ir.structured_snippets and not services_offered:
+        flags.append(
+            GuardrailFlag(
+                severity="warn",
+                code="unverified_structured_snippets",
+                message=(
+                    "Structured snippets were AI-generated, not agency-provided — verify "
+                    "these are real services before approving."
+                ),
             )
         )
 

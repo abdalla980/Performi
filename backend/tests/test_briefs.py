@@ -228,6 +228,9 @@ def test_submit_brief_with_full_details_are_returned_in_detail(client, db_sessio
             "competitors": "Big Bakery Co",
             "unique_selling_points": "Family recipes since 1990",
             "excluded_keywords": ["free", "cheap"],
+            "services_offered": ["Custom cakes", "Catering"],
+            "trust_signals": ["Family-Owned", "Fresh Daily"],
+            "audience_hints": [{"name": "Wedding planners", "description": "Need reliable delivery"}],
         },
         headers=headers,
     )
@@ -243,6 +246,9 @@ def test_submit_brief_with_full_details_are_returned_in_detail(client, db_sessio
     assert detail["competitors"] == "Big Bakery Co"
     assert detail["unique_selling_points"] == "Family recipes since 1990"
     assert detail["excluded_keywords"] == ["free", "cheap"]
+    assert detail["services_offered"] == ["Custom cakes", "Catering"]
+    assert detail["trust_signals"] == ["Family-Owned", "Fresh Daily"]
+    assert detail["audience_hints"] == [{"name": "Wedding planners", "description": "Need reliable delivery"}]
 
     main.app.dependency_overrides.clear()
 
@@ -271,6 +277,9 @@ def test_submit_brief_defaults_optional_fields(client, db_session):
     assert detail["end_date"] is None
     assert detail["platforms"] == ["google", "meta"]
     assert detail["excluded_keywords"] == []
+    assert detail["services_offered"] == []
+    assert detail["trust_signals"] == []
+    assert detail["audience_hints"] == []
 
     main.app.dependency_overrides.clear()
 
