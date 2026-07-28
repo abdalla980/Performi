@@ -66,7 +66,7 @@ describe('DraftDetailPage', () => {
 
     await screen.findByText('Acme Bakery')
 
-    await userEvent.click(screen.getByRole('button', { name: /run guardrails/i }))
+    await userEvent.click(screen.getByRole('button', { name: /run compliance check/i }))
     await waitFor(() => expect(runGuardrails).toHaveBeenCalledWith('draft-1'))
 
     await userEvent.click(await screen.findByRole('button', { name: /^approve$/i }))

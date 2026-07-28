@@ -20,7 +20,7 @@ describe('StatusStepper', () => {
 
     expect(stateOf('Brief')).toBe('complete')
     expect(stateOf('Generated')).toBe('complete')
-    expect(stateOf('Guardrails')).toBe('complete')
+    expect(stateOf('Compliance Check')).toBe('complete')
     expect(stateOf('Your approval')).toBe('complete')
     expect(stateOf('Client approval')).toBe('complete')
     expect(stateOf('Launched')).toBe('current')
@@ -35,7 +35,7 @@ describe('StatusStepper', () => {
   it('shows an error at the step where the agency rejected it, not the whole pipeline', () => {
     render(<StatusStepper status="rejected" />)
 
-    expect(stateOf('Guardrails')).toBe('complete')
+    expect(stateOf('Compliance Check')).toBe('complete')
     expect(stateOf('Your approval')).toBe('error')
     expect(stateOf('Client approval')).toBe('upcoming')
   })

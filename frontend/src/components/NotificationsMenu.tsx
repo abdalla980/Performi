@@ -8,7 +8,7 @@ import type { NotificationKind } from '../lib/types'
 const KIND_LABEL: Record<NotificationKind, string> = {
   pending_approval_stale: 'Awaiting your review',
   client_pending_stale: "Awaiting the client's review",
-  guardrail_blocked: 'Blocked by a guardrail flag',
+  guardrail_blocked: 'Blocked by a compliance issue',
   launch_failed: 'Failed to launch',
 }
 

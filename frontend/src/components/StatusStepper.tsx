@@ -4,7 +4,7 @@ import type { CampaignDraftStatus } from '../lib/types'
 
 type StepState = 'complete' | 'current' | 'error' | 'upcoming'
 
-const STEP_LABELS = ['Brief', 'Generated', 'Guardrails', 'Your approval', 'Client approval', 'Launched']
+const STEP_LABELS = ['Brief', 'Generated', 'Compliance Check', 'Your approval', 'Client approval', 'Launched']
 
 // Explicit per-status lookup rather than a formula — with only 9 statuses this is
 // easier to verify by inspection than deriving branch points algorithmically, and

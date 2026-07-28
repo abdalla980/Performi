@@ -33,7 +33,7 @@ def decide_draft(
     if body.decision == "approved":
         report = db.scalar(select(GuardrailReport).where(GuardrailReport.campaign_draft_id == draft.id))
         if report is not None and report.has_blocking_flags:
-            raise HTTPException(status_code=409, detail="Cannot approve a draft with blocking guardrail flags")
+            raise HTTPException(status_code=409, detail="Cannot approve a draft with blocking compliance issues")
 
         if body.edited_ir is not None:
             draft.ir_json = body.edited_ir.model_dump(mode="json")

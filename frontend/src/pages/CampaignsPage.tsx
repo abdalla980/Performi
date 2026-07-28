@@ -108,7 +108,7 @@ export function CampaignsPage() {
       {impactStats && impactStats.campaignsLaunched > 0 && (
         <div role="region" aria-label="Impact" className="grid grid-cols-2 gap-3 sm:grid-cols-2">
           <StatTile icon={TrendingUp} label="Est. hours saved" value={impactStats.estimatedHoursSaved.toFixed(0)} />
-          <StatTile icon={ShieldCheck} label="Guardrail issues caught" value={impactStats.guardrailIssuesCaught} />
+          <StatTile icon={ShieldCheck} label="Compliance issues caught" value={impactStats.guardrailIssuesCaught} />
         </div>
       )}
 

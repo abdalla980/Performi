@@ -186,14 +186,14 @@ export function DraftDetailPage() {
               disabled={guardrailsMutation.isPending}
               className="self-start"
             >
-              {guardrailsMutation.isPending ? 'Running guardrails…' : 'Run guardrails'}
+              {guardrailsMutation.isPending ? 'Running compliance check…' : 'Run compliance check'}
             </Button>
           )}
 
           {draft.guardrail && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Guardrail report</CardTitle>
+                <CardTitle className="text-base">Compliance check</CardTitle>
                 <CardDescription>
                   {draft.guardrail.flags.length === 0
                     ? 'No issues found.'
@@ -227,7 +227,7 @@ export function DraftDetailPage() {
                 <Button
                   onClick={() => approveMutation.mutate()}
                   disabled={approveMutation.isPending || draft.hasBlockingFlags}
-                  title={draft.hasBlockingFlags ? 'Resolve blocking guardrail flags before approving' : undefined}
+                  title={draft.hasBlockingFlags ? 'Resolve blocking compliance issues before approving' : undefined}
                 >
                   {approveMutation.isPending ? 'Approving…' : 'Approve'}
                 </Button>
