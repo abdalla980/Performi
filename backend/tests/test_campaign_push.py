@@ -83,6 +83,23 @@ def test_push_draft_records_failure_independently_per_platform(db_session, monke
     assert by_platform["meta"].status == "success"
 
 
+def test_retry_keeps_the_first_error_not_just_the_last():
+    # A partial first attempt can leave objects behind, so later retries fail for a
+    # different, misleading reason — the original cause must stay visible.
+    from app.services.campaign_push import _push_with_retry
+
+    errors = iter([RuntimeError("REQUIRED campaign_bidding_strategy"), RuntimeError("DUPLICATE_NAME")])
+
+    def push():
+        raise next(errors, RuntimeError("DUPLICATE_NAME"))
+
+    external_id, error = _push_with_retry(push, sleep_fn=lambda _seconds: None)
+
+    assert external_id is None
+    assert "REQUIRED campaign_bidding_strategy" in error
+    assert "DUPLICATE_NAME" in error
+
+
 def test_push_draft_only_pushes_connected_platforms(db_session, monkeypatch):
     monkeypatch.setattr("app.services.campaign_push.decrypt_token", lambda blob: "decrypted-token")
     draft = _draft(db_session, google_connected=True, meta_connected=False)

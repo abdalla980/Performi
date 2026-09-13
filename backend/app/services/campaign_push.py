@@ -18,15 +18,19 @@ _BACKOFF_SECONDS = 2
 
 
 def _push_with_retry(push_fn: Callable[[], str], sleep_fn: Callable[[float], None]) -> tuple[str | None, str | None]:
-    last_error: str | None = None
+    errors: list[str] = []
     for attempt in range(1, _MAX_ATTEMPTS + 1):
         try:
             return push_fn(), None
         except Exception as exc:  # noqa: BLE001 — recorded per-platform, not re-raised
-            last_error = str(exc)
+            message = str(exc)
+            if message not in errors:
+                errors.append(message)
             if attempt < _MAX_ATTEMPTS:
                 sleep_fn(_BACKOFF_SECONDS * attempt)
-    return None, last_error
+    # A partial first attempt can make later retries fail for a different reason, so
+    # keep every distinct error, first (the original cause) first.
+    return None, "\n\n".join(f"Attempt error: {e}" for e in errors)
 
 
 def push_draft_with_clients(

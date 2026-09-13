@@ -73,6 +73,9 @@ class _FakeGoogleAdsClient:
         )
         from google.ads.googleads.v24.enums.types.asset_field_type import AssetFieldTypeEnum
         from google.ads.googleads.v24.enums.types.campaign_status import CampaignStatusEnum
+        from google.ads.googleads.v24.enums.types.eu_political_advertising_status import (
+            EuPoliticalAdvertisingStatusEnum,
+        )
         from google.ads.googleads.v24.enums.types.keyword_match_type import KeywordMatchTypeEnum
         from google.ads.googleads.v24.services.types.ad_group_ad_service import AdGroupAdOperation
         from google.ads.googleads.v24.services.types.ad_group_criterion_service import (
@@ -110,6 +113,7 @@ class _FakeGoogleAdsClient:
                 "CampaignStatusEnum": CampaignStatusEnum.CampaignStatus,
                 "KeywordMatchTypeEnum": KeywordMatchTypeEnum.KeywordMatchType,
                 "AssetFieldTypeEnum": AssetFieldTypeEnum.AssetFieldType,
+                "EuPoliticalAdvertisingStatusEnum": EuPoliticalAdvertisingStatusEnum.EuPoliticalAdvertisingStatus,
             },
         )()
 
@@ -139,6 +143,19 @@ def _plan(**overrides) -> GoogleCampaignPlan:
     return GoogleCampaignPlan(**defaults)
 
 
+def test_each_push_uses_a_unique_budget_name(monkeypatch):
+    # Budget names must be unique per Google Ads account, so a retry or relaunch
+    # after a partial failure must not reuse the previous attempt's name.
+    fake_client = _FakeGoogleAdsClient()
+    monkeypatch.setattr("google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client)
+
+    for _ in range(2):
+        RealGoogleAdsPushClient().push(_plan(), refresh_token="rt", login_customer_id="1", customer_id="123")
+
+    names = [ops[0].create.name for name, _, ops in fake_client.service.calls if name == "mutate_campaign_budgets"]
+    assert len(set(names)) == 2
+
+
 def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
     fake_client = _FakeGoogleAdsClient()
     captured = {}
@@ -159,10 +176,17 @@ def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
 
     budget_ops = calls_by_name["mutate_campaign_budgets"][1]
     assert budget_ops[0].create.amount_micros == 16_500_000
+    assert budget_ops[0].create.name.startswith("Austin Bakery Budget ")
 
     campaign_ops = calls_by_name["mutate_campaigns"][1]
     assert campaign_ops[0].create.name == "Austin Bakery"
     assert campaign_ops[0].create.status == fake_client.enums.CampaignStatusEnum.PAUSED
+    # Google rejects new Search campaigns without a bidding strategy and an explicit
+    # EU political advertising declaration (both confirmed via validate_only).
+    assert campaign_ops[0].create.contains_eu_political_advertising == (
+        fake_client.enums.EuPoliticalAdvertisingStatusEnum.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
+    )
+    assert "target_spend" in campaign_ops[0].create
 
     ad_group_ops = calls_by_name["mutate_ad_groups"][1]
     assert ad_group_ops[0].create.name == "Primary"

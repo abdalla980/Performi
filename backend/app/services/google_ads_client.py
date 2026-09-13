@@ -85,6 +85,8 @@ class RealGoogleAdsPushClient:
     def push(
         self, plan: GoogleCampaignPlan, refresh_token: str, login_customer_id: str, customer_id: str
     ) -> str:
+        from uuid import uuid4
+
         from google.ads.googleads.client import GoogleAdsClient
 
         if not plan.final_url:
@@ -115,7 +117,9 @@ class RealGoogleAdsPushClient:
         }
 
         budget_op = gclient.get_type("CampaignBudgetOperation")
-        budget_op.create.name = f"{plan.campaign_name} Budget"
+        # Budget names must be unique per account; a suffix keeps a retry or relaunch
+        # from colliding with a budget an earlier, partially failed attempt left behind.
+        budget_op.create.name = f"{plan.campaign_name} Budget {uuid4().hex[:8]}"
         budget_op.create.amount_micros = plan.daily_budget_micros
         budget_resource = (
             campaign_budget_service.mutate_campaign_budgets(customer_id=customer_id, operations=[budget_op])
@@ -128,6 +132,13 @@ class RealGoogleAdsPushClient:
         campaign_op.create.campaign_budget = budget_resource
         campaign_op.create.advertising_channel_type = gclient.enums.AdvertisingChannelTypeEnum.SEARCH
         campaign_op.create.status = gclient.enums.CampaignStatusEnum.PAUSED
+        # Both are required on new Search campaigns (Google returns field_error REQUIRED
+        # without them): Maximize clicks with no CPC cap, and an explicit declaration
+        # that the ads aren't EU political advertising.
+        campaign_op.create.target_spend.target_spend_micros = 0
+        campaign_op.create.contains_eu_political_advertising = (
+            gclient.enums.EuPoliticalAdvertisingStatusEnum.DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING
+        )
         if plan.end_date is not None:
             campaign_op.create.end_date_time = plan.end_date.strftime("%Y-%m-%d")
         campaign_result = campaign_service.mutate_campaigns(
