@@ -81,7 +81,7 @@ export function DraftDetailPage() {
     actAsClientMutation.error
 
   const isDemoClient =
-    Boolean(client) &&
+    client != null &&
     !(client.googleAdsCustomerId && !client.googleAdsCustomerId.startsWith('demo-')) &&
     !(client.metaAdAccountId && !client.metaAdAccountId.startsWith('demo-'))
 
