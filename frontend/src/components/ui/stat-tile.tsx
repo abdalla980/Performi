@@ -10,14 +10,19 @@ interface StatTileProps {
 
 export function StatTile({ label, value, icon: Icon, className }: StatTileProps) {
   return (
-    <div className={cn('flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3', className)}>
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary">
-        <Icon className="h-4.5 w-4.5" />
+    <div
+      className={cn(
+        'flex flex-col gap-4 rounded-2xl border border-border/70 bg-card px-5 py-5 shadow-[0_1px_2px_rgba(18,32,51,0.04),0_4px_16px_rgba(18,32,51,0.05)]',
+        className,
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary">
+          <Icon className="h-4 w-4" />
+        </div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
       </div>
-      <div>
-        <p className="font-mono text-xl font-semibold leading-tight text-foreground">{value}</p>
-        <p className="text-xs text-muted-foreground">{label}</p>
-      </div>
+      <p className="font-sans text-[32px] font-semibold leading-none tracking-tight tabular-nums text-foreground">{value}</p>
     </div>
   )
 }

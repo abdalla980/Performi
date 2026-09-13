@@ -38,7 +38,7 @@ export function ClientPortalCampaignsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="font-display text-xl font-semibold text-foreground">Your campaigns</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Your campaigns</h1>
         <p className="text-sm text-muted-foreground">Campaigns your agency has prepared, awaiting your review.</p>
       </div>
 

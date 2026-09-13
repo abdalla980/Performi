@@ -19,8 +19,8 @@ export function ClientPortalShell() {
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
-      <header className="border-b border-border bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+      <header className="sticky top-0 z-10 border-b border-border/70 bg-card/80 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-6">
           <div className="flex items-center gap-2.5">
             {whoAmI?.agencyName && <Avatar name={whoAmI.agencyName} src={null} />}
             <div>
@@ -36,7 +36,7 @@ export function ClientPortalShell() {
           </Button>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-10">
         <Outlet />
       </main>
       <footer className="py-4 text-center text-xs text-muted-foreground">

@@ -29,7 +29,7 @@ export function ClientsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-xl font-semibold text-foreground">Clients</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Clients</h1>
           <p className="text-sm text-muted-foreground">The accounts you manage campaigns for.</p>
         </div>
         <Link to="/clients/new" className={cn(buttonVariants(), 'gap-2')}>

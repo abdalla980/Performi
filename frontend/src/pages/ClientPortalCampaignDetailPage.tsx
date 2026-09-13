@@ -64,7 +64,7 @@ export function ClientPortalCampaignDetailPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-start justify-between gap-4">
-        <h1 className="font-display text-xl font-semibold text-foreground">{campaign.businessDescription}</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">{campaign.businessDescription}</h1>
         <Badge variant={STATUS_BADGE_VARIANT[campaign.status]}>{STATUS_LABELS[campaign.status]}</Badge>
       </div>
 

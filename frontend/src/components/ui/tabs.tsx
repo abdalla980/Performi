@@ -27,7 +27,7 @@ export function TabsList({ className, ...props }: HTMLAttributes<HTMLDivElement>
   return (
     <div
       role="tablist"
-      className={cn('inline-flex items-center gap-1 rounded-md border border-border bg-surface p-1', className)}
+      className={cn('inline-flex items-center gap-1 rounded-xl border border-border/70 bg-card p-1', className)}
       {...props}
     />
   )
@@ -49,8 +49,8 @@ export function TabsTrigger({ value, className, ...props }: TabsTriggerProps) {
       aria-selected={isActive}
       onClick={() => context.setValue(value)}
       className={cn(
-        'rounded-sm px-3 py-1.5 text-sm font-medium transition-colors',
-        isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+        'rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors',
+        isActive ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
         className,
       )}
       {...props}

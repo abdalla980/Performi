@@ -152,7 +152,7 @@ export function ClientDetailPage() {
   return (
     <div className="flex max-w-2xl flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
-        <h1 className="font-display text-xl font-semibold text-foreground">{client.name}</h1>
+        <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">{client.name}</h1>
         <Button
           type="button"
           variant="outline"

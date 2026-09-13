@@ -43,7 +43,7 @@ export function ClientSummaryPage() {
           />
         )}
         <div>
-          <h1 className="font-display text-xl font-semibold text-foreground">{draft.clientName}</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">{draft.clientName}</h1>
           <p className="text-sm text-muted-foreground">{draft.businessDescription}</p>
         </div>
       </div>
