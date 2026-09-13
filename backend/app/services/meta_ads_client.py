@@ -42,6 +42,9 @@ def _build_targeting(ad_set, access_token: str, http_client: httpx.Client | None
         "geo_locations": {"countries": ["US"]},
         "age_min": age_min,
         "age_max": age_max,
+        # This app already builds explicit structured targeting (age/geo/interests) —
+        # disable Meta's Advantage+ audience expansion rather than let it override it.
+        "targeting_automation": {"advantage_audience": 0},
     }
     if ad_set.interests:
         resolved, _skipped = resolve_interests(ad_set.interests, access_token, http_client=http_client)
@@ -148,6 +151,9 @@ class RealMetaAdsPushClient:
                 # Required on every campaign create, even when nothing special
                 # applies — Meta rejects the call outright without it.
                 Campaign.Field.special_ad_categories: [],
+                # Budgets are set per ad set below, not at the campaign level —
+                # Meta's v25+ API requires this explicitly rather than defaulting it.
+                Campaign.Field.is_adset_budget_sharing_enabled: False,
             }
         )
         campaign_id = campaign[Campaign.Field.id]
@@ -166,6 +172,9 @@ class RealMetaAdsPushClient:
                         AdSet.Field.destination_type: AdSet.DestinationType.website,
                         AdSet.Field.targeting: targeting,
                         AdSet.Field.status: AdSet.Status.paused,
+                        # No manual bid cap configured anywhere in this app — let Meta
+                        # auto-bid for the lowest cost per result, its uncapped default.
+                        AdSet.Field.bid_strategy: AdSet.BidStrategy.lowest_cost_without_cap,
                     }
                 )
                 adset_id = adset[AdSet.Field.id]

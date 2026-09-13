@@ -124,6 +124,7 @@ def test_push_creates_campaign_adset_creative_and_ad_for_traffic(monkeypatch, me
 
     assert calls["create_campaign"][Campaign.Field.objective] == Campaign.Objective.outcome_traffic
     assert calls["create_campaign"][Campaign.Field.status] == Campaign.Status.paused
+    assert calls["create_campaign"][Campaign.Field.is_adset_budget_sharing_enabled] is False
 
     from facebook_business.adobjects.adset import AdSet
 
@@ -131,6 +132,7 @@ def test_push_creates_campaign_adset_creative_and_ad_for_traffic(monkeypatch, me
     assert ad_set_params[AdSet.Field.campaign_id] == "camp-1"
     assert ad_set_params[AdSet.Field.daily_budget] == 1650
     assert ad_set_params[AdSet.Field.optimization_goal] == AdSet.OptimizationGoal.link_clicks
+    assert ad_set_params[AdSet.Field.bid_strategy] == AdSet.BidStrategy.lowest_cost_without_cap
     assert ad_set_params[AdSet.Field.targeting]["geo_locations"] == {"countries": ["US"]}
     assert ad_set_params[AdSet.Field.targeting]["age_min"] == 18
     assert ad_set_params[AdSet.Field.targeting]["age_max"] == 65
@@ -181,6 +183,7 @@ def test_push_uses_segment_age_and_resolved_interests(monkeypatch, meta_configur
     assert targeting["age_min"] == 25
     assert targeting["age_max"] == 54
     assert targeting["flexible_spec"] == [{"interests": [{"id": "6001", "name": "Bakeries"}]}]
+    assert targeting["targeting_automation"] == {"advantage_audience": 0}
 
 
 def test_push_creates_one_ad_per_creative(monkeypatch, meta_configured):
