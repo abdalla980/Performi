@@ -23,6 +23,20 @@ class FakeGoogleAdsPushClient:
         return self._external_id
 
 
+def google_plan_problems(plan: GoogleCampaignPlan) -> list[str]:
+    """Responsive search ad limits Google enforces: 3-15 headlines of at most 30
+    characters, and 2-4 descriptions of at most 90 characters, per ad."""
+    problems = []
+    for group in plan.ad_groups:
+        if not 3 <= len(group.headlines) <= 15:
+            problems.append(f"ad group '{group.name}' has {len(group.headlines)} headlines (needs 3-15)")
+        if not 2 <= len(group.descriptions) <= 4:
+            problems.append(f"ad group '{group.name}' has {len(group.descriptions)} descriptions (needs 2-4)")
+        problems += [f"headline over 30 characters: '{h}'" for h in group.headlines if len(h) > 30]
+        problems += [f"description over 90 characters: '{d}'" for d in group.descriptions if len(d) > 90]
+    return problems
+
+
 def _attach_extension_assets(gclient, customer_id: str, campaign_resource: str, plan: GoogleCampaignPlan) -> None:
     """Create callout / structured snippet / sitelink assets and link them to the campaign."""
     asset_service = gclient.get_service("AssetService")
@@ -35,7 +49,9 @@ def _attach_extension_assets(gclient, customer_id: str, campaign_resource: str, 
         asset_ops.append(("CALLOUT", op))
 
     for header, values in plan.structured_snippets.items():
-        if not values:
+        # Google rejects a structured snippet with fewer than 3 values
+        # (collection_size_error TOO_FEW), so drop short ones rather than fail the launch.
+        if len(values) < 3:
             continue
         op = gclient.get_type("AssetOperation")
         op.create.structured_snippet_asset.header = header
@@ -91,6 +107,11 @@ class RealGoogleAdsPushClient:
 
         if not plan.final_url:
             raise ValueError("GoogleCampaignPlan.final_url is required to create a responsive search ad")
+        # Check Google's responsive-search-ad limits before any mutation, so a bad plan
+        # fails cleanly instead of leaving a half-built campaign in the client's account.
+        problems = google_plan_problems(plan)
+        if problems:
+            raise ValueError("Google Ads plan breaks Google's limits: " + "; ".join(problems))
 
         settings = get_settings()
         gclient = GoogleAdsClient.load_from_dict(
@@ -117,9 +138,10 @@ class RealGoogleAdsPushClient:
         }
 
         budget_op = gclient.get_type("CampaignBudgetOperation")
-        # Budget names must be unique per account; a suffix keeps a retry or relaunch
-        # from colliding with a budget an earlier, partially failed attempt left behind.
-        budget_op.create.name = f"{plan.campaign_name} Budget {uuid4().hex[:8]}"
+        # Budget and campaign names must be unique per account; a per-launch suffix keeps
+        # a retry or relaunch from colliding with what a partially failed attempt left.
+        suffix = uuid4().hex[:6]
+        budget_op.create.name = f"{plan.campaign_name} Budget {suffix}"
         budget_op.create.amount_micros = plan.daily_budget_micros
         budget_resource = (
             campaign_budget_service.mutate_campaign_budgets(customer_id=customer_id, operations=[budget_op])
@@ -128,7 +150,7 @@ class RealGoogleAdsPushClient:
         )
 
         campaign_op = gclient.get_type("CampaignOperation")
-        campaign_op.create.name = plan.campaign_name
+        campaign_op.create.name = f"{plan.campaign_name} ({suffix})"
         campaign_op.create.campaign_budget = budget_resource
         campaign_op.create.advertising_channel_type = gclient.enums.AdvertisingChannelTypeEnum.SEARCH
         campaign_op.create.status = gclient.enums.CampaignStatusEnum.PAUSED

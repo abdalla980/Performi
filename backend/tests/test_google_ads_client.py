@@ -143,7 +143,46 @@ def _plan(**overrides) -> GoogleCampaignPlan:
     return GoogleCampaignPlan(**defaults)
 
 
-def test_each_push_uses_a_unique_budget_name(monkeypatch):
+def test_plan_breaking_google_limits_fails_before_creating_anything(monkeypatch):
+    # A live launch once created the budget and campaign, then died at the ads because
+    # each ad group had only 2 headlines — leaving a half-built campaign behind.
+    fake_client = _FakeGoogleAdsClient()
+    monkeypatch.setattr("google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client)
+    short_group = GoogleAdGroup(
+        name="Primary",
+        keywords=[GoogleKeyword(text="bakery near me")],
+        headlines=["Fresh Pastries Daily", "Austin's Best Bakery"],
+        descriptions=["Visit today.", "x" * 91],
+    )
+
+    with pytest.raises(ValueError) as excinfo:
+        RealGoogleAdsPushClient().push(
+            _plan(ad_groups=[short_group]), refresh_token="rt", login_customer_id="1", customer_id="123"
+        )
+
+    assert "2 headlines" in str(excinfo.value)
+    assert "over 90 characters" in str(excinfo.value)
+    assert fake_client.service.calls == []
+
+
+def test_structured_snippet_with_fewer_than_three_values_is_skipped(monkeypatch):
+    # Google rejects snippets with < 3 values (TOO_FEW), which used to fail the whole launch.
+    fake_client = _FakeGoogleAdsClient()
+    monkeypatch.setattr("google.ads.googleads.client.GoogleAdsClient.load_from_dict", lambda config: fake_client)
+
+    RealGoogleAdsPushClient().push(
+        _plan(structured_snippets={"Services": ["Design", "Printing"]}, callouts=["Free Quotes"]),
+        refresh_token="rt",
+        login_customer_id="1",
+        customer_id="123",
+    )
+
+    asset_ops = [op for name, _, ops in fake_client.service.calls if name == "mutate_assets" for op in ops]
+    assert len(asset_ops) == 1
+    assert asset_ops[0].create.callout_asset.callout_text == "Free Quotes"
+
+
+def test_each_push_uses_a_unique_budget_and_campaign_name(monkeypatch):
     # Budget names must be unique per Google Ads account, so a retry or relaunch
     # after a partial failure must not reuse the previous attempt's name.
     fake_client = _FakeGoogleAdsClient()
@@ -152,8 +191,9 @@ def test_each_push_uses_a_unique_budget_name(monkeypatch):
     for _ in range(2):
         RealGoogleAdsPushClient().push(_plan(), refresh_token="rt", login_customer_id="1", customer_id="123")
 
-    names = [ops[0].create.name for name, _, ops in fake_client.service.calls if name == "mutate_campaign_budgets"]
-    assert len(set(names)) == 2
+    for service_call in ("mutate_campaign_budgets", "mutate_campaigns"):
+        names = [ops[0].create.name for name, _, ops in fake_client.service.calls if name == service_call]
+        assert len(set(names)) == 2, service_call
 
 
 def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
@@ -179,7 +219,7 @@ def test_push_creates_budget_campaign_ad_group_keywords_and_rsa(monkeypatch):
     assert budget_ops[0].create.name.startswith("Austin Bakery Budget ")
 
     campaign_ops = calls_by_name["mutate_campaigns"][1]
-    assert campaign_ops[0].create.name == "Austin Bakery"
+    assert campaign_ops[0].create.name.startswith("Austin Bakery (")
     assert campaign_ops[0].create.status == fake_client.enums.CampaignStatusEnum.PAUSED
     # Google rejects new Search campaigns without a bidding strategy and an explicit
     # EU political advertising declaration (both confirmed via validate_only).
@@ -252,7 +292,7 @@ def test_push_creates_extension_assets_when_present(monkeypatch):
     RealGoogleAdsPushClient().push(
         _plan(
             callouts=["Free Shipping"],
-            structured_snippets={"Services": ["Repair", "Install"]},
+            structured_snippets={"Services": ["Repair", "Install", "Maintenance"]},
             sitelinks=[Sitelink(text="Menu", url="https://example.com/menu", description="See our menu")],
         ),
         refresh_token="rt",
@@ -266,7 +306,7 @@ def test_push_creates_extension_assets_when_present(monkeypatch):
     asset_ops = calls_by_name["mutate_assets"]
     assert asset_ops[0].create.callout_asset.callout_text == "Free Shipping"
     assert asset_ops[1].create.structured_snippet_asset.header == "Services"
-    assert list(asset_ops[1].create.structured_snippet_asset.values) == ["Repair", "Install"]
+    assert list(asset_ops[1].create.structured_snippet_asset.values) == ["Repair", "Install", "Maintenance"]
     assert asset_ops[2].create.sitelink_asset.link_text == "Menu"
     assert list(asset_ops[2].create.final_urls) == ["https://example.com/menu"]
 

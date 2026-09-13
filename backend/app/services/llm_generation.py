@@ -68,9 +68,12 @@ def _build_prompt(brief: Brief, brand_voice: BrandVoiceProfile | None) -> str:
         "daily_budget_usd, end_date (YYYY-MM-DD or null), audience_segments (1-3 objects with "
         "name, description, optional age_min/age_max, interests (list of strings), "
         "keywords (list of {text, match_type} where match_type is exact/phrase/broad), "
-        "ad_copy (list of {headline, description}, 2+ per segment recommended)), "
-        "call_to_action, callouts (3-10 short trust phrases), "
-        "structured_snippets (object mapping header strings to value lists)."
+        "ad_copy (list of {headline, description}, at least 3 per segment — Google needs 3+ "
+        "headlines per ad; each headline at most 30 characters, each description at most "
+        "90 characters)), "
+        "call_to_action, callouts (3-10 short trust phrases, each at most 25 characters), "
+        "structured_snippets (object mapping header strings to lists of at least 3 values, "
+        "each at most 25 characters)."
     )
 
 
