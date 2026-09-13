@@ -17,8 +17,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    supabase.auth.getSession().then(async ({ data }) => {
       setSession(data.session)
+      // Local development only: skip the login page by signing in with credentials
+      // from the git-ignored frontend/.env.local. Production builds strip this branch
+      // (import.meta.env.DEV is false), so deployed apps always require a real login.
+      const email = import.meta.env.VITE_DEV_AUTOLOGIN_EMAIL
+      const password = import.meta.env.VITE_DEV_AUTOLOGIN_PASSWORD
+      if (!data.session && import.meta.env.DEV && email && password) {
+        await loginWithPassword(email, password).catch(() => undefined)
+      }
       setLoading(false)
     })
 
