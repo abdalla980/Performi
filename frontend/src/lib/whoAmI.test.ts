@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { fetchWhoAmI } from './whoAmI'
+import { AccountNotLinkedError, fetchWhoAmI } from './whoAmI'
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
@@ -36,5 +36,23 @@ describe('fetchWhoAmI', () => {
     await expect(fetchWhoAmI({ baseUrl: 'http://localhost:8000', token: 'bad-token', fetchFn })).rejects.toThrow(
       'No agency or client linked',
     )
+  })
+
+  it('throws AccountNotLinkedError when the token is valid but no agency or client is linked', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(jsonResponse({ detail: 'No agency or client linked to this Supabase account' }, 401))
+
+    await expect(fetchWhoAmI({ baseUrl: 'http://localhost:8000', token: 'token-123', fetchFn })).rejects.toBeInstanceOf(
+      AccountNotLinkedError,
+    )
+  })
+
+  it('does not treat an invalid token as an unlinked account', async () => {
+    const fetchFn = vi.fn().mockResolvedValue(jsonResponse({ detail: 'Invalid token' }, 401))
+
+    const error = await fetchWhoAmI({ baseUrl: 'http://localhost:8000', token: 'bad', fetchFn }).catch((e) => e)
+    expect(error).toBeInstanceOf(Error)
+    expect(error).not.toBeInstanceOf(AccountNotLinkedError)
   })
 })
